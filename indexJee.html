@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>JEE 2027 — Study Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    html,body,#root{height:100%;width:100%;}
+    body{background:#0A0F1E;font-family:'DM Sans',sans-serif;color:#E2E8F0;overscroll-behavior:none;}
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#1E3A5F;border-radius:4px;}
+    input,button,select{font-family:'DM Sans',sans-serif;}
+    input[type="date"]{color-scheme:dark;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
+    @keyframes shimmer{0%{background-position:-200% 0;}100%{background-position:200% 0;}}
+    .fade-up{animation:fadeUp 0.3s ease forwards;}
+    .pulse{animation:pulse 2s infinite;}
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useCallback } = React;
+
+    // ─── SUBJECT DATA ──────────────────────────────────────────────────────────
+    const COACHING = {
+      0:{label:"Free Study",subj:null,sec:null},
+      1:{label:"Organic Chem",subj:"chemistry",sec:"organic"},
+      2:{label:"Physical Chem",subj:"chemistry",sec:"physical"},
+      3:{label:"Physics",subj:"physics",sec:null},
+      4:{label:"Physics",subj:"physics",sec:null},
+      5:{label:"Mathematics",subj:"maths",sec:null},
+      6:{label:"Mathematics",subj:"maths",sec:null},
+    };
+
+    const MATHS = ["Basics of Mathematics","Set Theory","Logarithms","Quadratic Equations & Expressions","Sequence & Series","Trigonometrical Ratios & Identities","Trigonometrical Equations","Triangle Trigonometry","Determinants","Matrices","Binomial Theorem","Permutations & Combinations","Probability","Straight Line","Pair of Lines","Circle","Parabola","Hyperbola & Ellipse","Complex Numbers","Functions & Graphs","Inverse Trigonometry Functions","Limits","Continuity & Differentiability","Derivatives","Application of Derivatives","Indefinite Integrations","Definite Integration","Area under the Curve","Differential Equation & Applications","Vectors","3-D Geometry","Statistics"]
+      .map((n,i)=>({id:`M${String(i+1).padStart(2,'0')}`,name:n,subj:"maths",sec:null}));
+
+    const PHYSICS = ["Basics of Physics","Straight Line Motion","Projectile Motion","Relative Motion","Force Dynamics","Work Power Energy","Mechanics of Circular Motion","Theory of Collisions","Rotational Mechanics","Gravitation","Simple Harmonic Motion","Mechanical Properties of Solids & Liquids","Fluid Mechanics","Thermometry, Calorimetry & Thermal Expansion","Kinetic Theory of Gases & Thermodynamics","Electrostatics","Theory of Capacitors","Current Electricity","Magnetostatics","Electromagnetic Induction","D.C. Circuits","A.C. Circuits","Geometric Optics","Wave Mechanics","Interference, Diffraction, Polarisation","Heat Transfer","Modern Physics"]
+      .map((n,i)=>({id:`P${String(i+1).padStart(2,'0')}`,name:n,subj:"physics",sec:null}));
+
+    const CHEM_PHY = ["General Chemistry","Stoichiometry","Gas Laws","Chemical Kinetics","Chemical Equilibrium","Ionic Equilibrium","Redox Concepts & Redox Titrations","Thermochemistry & Thermodynamics-1","Thermochemistry & Thermodynamics-2","Electrochemistry","Solutions","Solid State","Surface Chemistry"]
+      .map((n,i)=>({id:`CP${String(i+1).padStart(2,'0')}`,name:n,subj:"chemistry",sec:"physical"}));
+
+    const CHEM_ORG = ["Classification & IUPAC Nomenclature","Structure & Isomerism","Structure & Reactivity","Reaction Mechanisms","Aromatic Compounds","Reactions & Reagents","Hydrocarbons – 1","Hydrocarbons – 2","Halogen Derivatives","Organic Hydroxy Compounds","Ethers & Epoxides","Aldehyde & Ketones","Carboxylic Acids & its Derivatives","Nitrogen containing Compounds","Biomolecules","Polymers"]
+      .map((n,i)=>({id:`CO${String(i+1).padStart(2,'0')}`,name:n,subj:"chemistry",sec:"organic"}));
+
+    const CHEM_INO = ["S-Block Elements","P-Block Elements","Coordination Compounds","D & F Block Elements","Chemical Bonding – 2","Extractive Metallurgy","Inorganic Qualitative Analysis"]
+      .map((n,i)=>({id:`CI${String(i+1).padStart(2,'0')}`,name:n,subj:"chemistry",sec:"inorganic"}));
+
+    const ALL_MAP = {};
+    [...MATHS,...PHYSICS,...CHEM_PHY,...CHEM_ORG,...CHEM_INO].forEach(c=>{ALL_MAP[c.id]=c;});
+
+    const COL   = {maths:"#38BDF8",physics:"#34D399",chemistry:"#FBBF24"};
+    const COL2  = {maths:"#0EA5E9",physics:"#10B981",chemistry:"#F59E0B"};
+    const COL_IC= {organic:"#F87171",physical:"#FBBF24",inorganic:"#A78BFA"};
+    const SUBJ_ICON = {maths:"∑",physics:"⚡",chemistry:"⚗"};
+
+    // ─── STORAGE ────────────────────────────────────────────────────────────────
+    const LS = {
+      get(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}},
+      set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){console.error(e);}},
+    };
+
+    // ─── UTILS ──────────────────────────────────────────────────────────────────
+    function addDays(ds,n){const[y,m,d]=ds.split('-').map(Number);const dt=new Date(y,m-1,d+n);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;}
+    function getDOW(ds){const[y,m,d]=ds.split('-').map(Number);return new Date(y,m-1,d).getDay();}
+    function fmtDate(ds,opts={}){const[y,m,d]=ds.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',...opts});}
+    function fmtLong(ds){const[y,m,d]=ds.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+
+    const TODAY=(()=>{const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;})();
+
+    function buildSchedule(ids,start,end,hpd){
+      // ── collect topics grouped by subject ──────────────────────────────────
+      const topics = ids.map(id=>ALL_MAP[id]).filter(Boolean);
+      if(!topics.length) return {};
+
+      // build days array
+      const days=[];let ds=start;
+      while(ds<=end){days.push(ds);ds=addDays(ds,1);}
+      const totalDays=days.length;
+
+      // ── compute exact per-day quota so EVERY topic is placed ──────────────
+      // base = floor(total/days), remainder spread across first N days
+      const total=topics.length;
+      const base=Math.max(1,Math.floor(total/totalDays));
+      const extra=total - base*totalDays; // some days get base+1
+
+      // quota[i] = how many topics day i should get
+      const quota=days.map((_,i)=>i<extra?base+1:base);
+
+      // ── group topics by subject for interleaving ───────────────────────────
+      const bySubj={};
+      topics.forEach(t=>{
+        if(!bySubj[t.subj])bySubj[t.subj]=[];
+        bySubj[t.subj].push(t);
+      });
+      const subjKeys=Object.keys(bySubj);
+
+      // interleave subjects: pick round-robin across subjects so each day
+      // gets a mix — e.g. Maths, Physics, Chem, Maths, Physics …
+      const interleaved=[];
+      let si=0,safety=0;
+      while(interleaved.length<total && safety<total*3){
+        safety++;
+        const sk=subjKeys[si%subjKeys.length];
+        if(bySubj[sk]&&bySubj[sk].length>0){
+          interleaved.push(bySubj[sk].shift());
+        }
+        si++;
+      }
+
+      // ── assign to days respecting quota ───────────────────────────────────
+      // For each day, soft-prefer topics matching today's coaching subject —
+      // pull those forward within the upcoming window without breaking quota.
+      let pool=[...interleaved];
+      const sched={};
+
+      for(let i=0;i<days.length;i++){
+        const date=days[i];
+        const q=quota[i];
+        if(pool.length===0){sched[date]=[];continue;}
+
+        const cs=COACHING[getDOW(date)];
+        // find up to 1 coaching-aligned topic among next 2*q topics in pool
+        const lookahead=Math.min(pool.length,q*2);
+        const alignedIdx=cs.subj
+          ? pool.slice(0,lookahead).findIndex(t=>t.subj===cs.subj&&(!cs.sec||t.sec===cs.sec))
+          : -1;
+
+        let dayTopics=[];
+        if(alignedIdx>0){
+          // swap aligned topic to front of pool
+          const [aligned]=pool.splice(alignedIdx,1);
+          pool.unshift(aligned);
+        }
+        dayTopics=pool.splice(0,q);
+        sched[date]=dayTopics.map(t=>t.id);
+      }
+
+      return sched;
+    }
+
+    // ─── DESIGN TOKENS ──────────────────────────────────────────────────────────
+    const T = {
+      bg:"#0A0F1E",
+      card:"rgba(15,25,50,0.9)",
+      cardBorder:"rgba(56,189,248,0.12)",
+      text:"#E2E8F0",
+      muted:"#64748B",
+      accent:"#38BDF8",
+    };
+
+    // ─── CARD ───────────────────────────────────────────────────────────────────
+    function Card({children,style={},glow=false,onClick=null}){
+      return(
+        <div onClick={onClick} style={{
+          background:T.card,
+          border:`1px solid ${T.cardBorder}`,
+          borderRadius:16,
+          backdropFilter:"blur(12px)",
+          boxShadow:glow?"0 0 24px rgba(56,189,248,0.08), 0 4px 24px rgba(0,0,0,0.4)":"0 4px 20px rgba(0,0,0,0.35)",
+          ...style,cursor:onClick?"pointer":style.cursor||"default"
+        }}>{children}</div>
+      );
+    }
+
+    // ─── PROGRESS BAR ───────────────────────────────────────────────────────────
+    function Bar({pct,color="#38BDF8",h=6}){
+      return(
+        <div style={{background:"rgba(255,255,255,0.06)",borderRadius:99,height:h,overflow:"hidden"}}>
+          <div style={{width:`${pct}%`,height:"100%",background:`linear-gradient(90deg,${color},${color}cc)`,borderRadius:99,transition:"width 0.5s cubic-bezier(.4,0,.2,1)"}}/>
+        </div>
+      );
+    }
+
+    // ─── CHECKBOX ───────────────────────────────────────────────────────────────
+    function Checkbox({done,color="#38BDF8",size=22}){
+      return(
+        <div style={{width:size,height:size,borderRadius:size/3,
+          border:`2px solid ${done?color:"rgba(255,255,255,0.15)"}`,
+          background:done?color:"transparent",
+          display:"flex",alignItems:"center",justifyContent:"center",
+          flexShrink:0,transition:"all 0.2s",color:"#0A0F1E",fontSize:size*0.55,fontWeight:900}}>
+          {done&&"✓"}
+        </div>
+      );
+    }
+
+    // ─── TAG ────────────────────────────────────────────────────────────────────
+    function Tag({label,color}){
+      return(
+        <span style={{fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",
+          background:`${color}18`,color,borderRadius:6,padding:"3px 8px",lineHeight:1.5}}>
+          {label}
+        </span>
+      );
+    }
+
+    // ─── TOPIC PICKER ────────────────────────────────────────────────────────────
+    function Picker({label,color,chapters,selectedTopics,setSelectedTopics}){
+      const[open,setOpen]=useState(false);
+      const ids=chapters.map(c=>c.id);
+      const selCnt=ids.filter(id=>selectedTopics.includes(id)).length;
+      const allSel=ids.length>0&&ids.every(id=>selectedTopics.includes(id));
+      const toggle=id=>setSelectedTopics(p=>p.includes(id)?p.filter(x=>x!==id):[...p,id]);
+      const toggleAll=()=>setSelectedTopics(p=>allSel?p.filter(id=>!ids.includes(id)):[...new Set([...p,...ids])]);
+      return(
+        <div style={{marginBottom:8,borderRadius:12,overflow:"hidden",border:`1px solid ${open?color+"40":"rgba(255,255,255,0.07)"}`,transition:"border-color 0.2s"}}>
+          <div onClick={()=>setOpen(!open)} style={{padding:"13px 14px",display:"flex",alignItems:"center",cursor:"pointer",userSelect:"none",background:"rgba(255,255,255,0.03)",gap:10}}>
+            <div style={{width:3,height:20,borderRadius:3,background:color,flexShrink:0}}/>
+            <span style={{fontWeight:700,flex:1,fontSize:13,color:T.text}}>{label}</span>
+            {selCnt>0&&<span style={{fontSize:10,fontWeight:700,background:`${color}22`,color,borderRadius:20,padding:"2px 9px"}}>{selCnt} selected</span>}
+            <span style={{color:T.muted,fontSize:10,transform:open?"rotate(180deg)":"none",transition:"transform 0.2s",display:"inline-block"}}>▼</span>
+          </div>
+          {open&&(
+            <div style={{borderTop:`1px solid rgba(255,255,255,0.05)`}}>
+              <div onClick={toggleAll} style={{padding:"9px 14px",fontSize:12,color,fontWeight:700,cursor:"pointer",background:`${color}08`,display:"flex",alignItems:"center",gap:8,userSelect:"none"}}>
+                <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${allSel?color:"rgba(255,255,255,0.2)"}`,background:allSel?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#0A0F1E",fontSize:9,fontWeight:900}}>{allSel&&"✓"}</div>
+                {allSel?"Deselect All":"Select All"}
+              </div>
+              <div style={{maxHeight:220,overflowY:"auto"}}>
+                {chapters.map(ch=>{
+                  const sel=selectedTopics.includes(ch.id);
+                  return(
+                    <div key={ch.id} onClick={()=>toggle(ch.id)} style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10,cursor:"pointer",background:sel?`${color}0a`:"transparent",borderBottom:"1px solid rgba(255,255,255,0.04)",userSelect:"none",transition:"background 0.15s"}}>
+                      <div style={{width:16,height:16,borderRadius:4,border:`2px solid ${sel?color:"rgba(255,255,255,0.15)"}`,background:sel?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#0A0F1E",fontSize:9,fontWeight:900}}>{sel&&"✓"}</div>
+                      <span style={{fontSize:13,color:sel?T.text:"#94A3B8"}}>{ch.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─── TODAY VIEW ──────────────────────────────────────────────────────────────
+    function TodayView({plans,progress,onToggle}){
+      const dow=getDOW(TODAY);
+      const cs=COACHING[dow];
+      const tasks=plans.flatMap(plan=>(plan.schedule?.[TODAY]||[]).map(tid=>({
+        planId:plan.id,planName:plan.name,id:tid,ch:ALL_MAP[tid],
+        done:!!(progress[plan.id]?.[TODAY]?.[tid])
+      })));
+      const doneCount=tasks.filter(t=>t.done).length;
+      const pct=tasks.length>0?Math.round(doneCount/tasks.length*100):0;
+
+      return(
+        <div className="fade-up">
+          <Card glow style={{padding:"18px",marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>TODAY</div>
+                <div style={{fontWeight:800,fontSize:15,color:T.text,lineHeight:1.3}}>{fmtLong(TODAY)}</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:4}}>Coaching: <span style={{color:T.accent,fontWeight:700}}>{cs.label}</span></div>
+              </div>
+              {tasks.length>0&&(
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:32,fontWeight:700,lineHeight:1,color:pct===100?"#34D399":T.accent}}>{pct}<span style={{fontSize:16}}>%</span></div>
+                  <div style={{fontSize:10,color:T.muted,marginTop:2}}>{doneCount}/{tasks.length}</div>
+                </div>
+              )}
+            </div>
+            {tasks.length>0&&<Bar pct={pct} color={pct===100?"#34D399":T.accent} h={5}/>}
+          </Card>
+
+          {tasks.length===0?(
+            <div style={{textAlign:"center",color:T.muted,paddingTop:60}}>
+              <div style={{fontSize:52,opacity:0.3}}>◎</div>
+              <div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.6}}>No tasks for today.<br/>Create a plan to begin.</div>
+            </div>
+          ):tasks.map((t,i)=>{
+            const c=COL[t.ch?.subj]||"#94A3B8";
+            return(
+              <div key={t.id+t.planId} onClick={()=>onToggle(t.planId,TODAY,t.id)}
+                style={{background:t.done?"rgba(52,211,153,0.06)":"rgba(15,25,50,0.8)",
+                  border:`1px solid ${t.done?"rgba(52,211,153,0.2)":"rgba(255,255,255,0.06)"}`,
+                  borderRadius:14,padding:"14px 16px",marginBottom:8,
+                  display:"flex",alignItems:"center",gap:12,cursor:"pointer",
+                  userSelect:"none",transition:"all 0.2s",
+                  animation:`fadeUp 0.3s ${i*0.05}s ease both`}}>
+                <Checkbox done={t.done} color={c}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:700,fontSize:14,color:t.done?"#34D399":T.text,
+                    textDecoration:t.done?"line-through":"none",opacity:t.done?0.7:1,
+                    whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.ch?.name}</div>
+                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>{t.planName}</div>
+                </div>
+                <div style={{width:8,height:8,borderRadius:"50%",background:c,flexShrink:0}}/>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── PLANS VIEW ──────────────────────────────────────────────────────────────
+    function PlansView({plans,progress,onDelete,onView}){
+      if(!plans.length) return(
+        <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up">
+          <div style={{fontSize:52,opacity:0.2,fontFamily:"'Space Mono',monospace"}}>[ ]</div>
+          <div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No plans yet.<br/>Tap <b style={{color:T.accent}}>New Plan</b> to create one.</div>
+        </div>
+      );
+      return(
+        <div className="fade-up">
+          {plans.map((plan,pi)=>{
+            const all=[...new Set(Object.values(plan.schedule||{}).flat())];
+            const done=[...new Set(Object.values(progress[plan.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
+            const pct=all.length>0?Math.round(done.length/all.length*100):0;
+            const todayT=plan.schedule?.[TODAY]||[];
+            return(
+              <Card key={plan.id} style={{padding:"18px",marginBottom:12}} glow={pct>0&&pct<100}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div style={{flex:1,minWidth:0,marginRight:12}}>
+                    <div style={{fontWeight:800,fontSize:15,color:T.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{plan.name}</div>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,marginTop:4,letterSpacing:0.5}}>
+                      {fmtDate(plan.startDate)} → {fmtDate(plan.endDate)} · {plan.dailyHours}h/day
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontFamily:"'Space Mono',monospace",fontSize:28,fontWeight:700,lineHeight:1,color:pct===100?"#34D399":T.accent}}>{pct}<span style={{fontSize:13}}>%</span></div>
+                    <div style={{fontSize:10,color:T.muted}}>{done.length}/{all.length}</div>
+                  </div>
+                </div>
+                <Bar pct={pct} color={pct===100?"#34D399":T.accent}/>
+                <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                  {(plan.subjects||[]).map(s=>(
+                    <Tag key={s} label={s} color={COL[s]}/>
+                  ))}
+                </div>
+                {todayT.length>0&&(
+                  <div style={{marginTop:10,fontSize:11,color:T.muted,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:10,lineHeight:1.7}}>
+                    <span style={{color:T.accent,fontWeight:700}}>Today → </span>
+                    {todayT.map(id=>ALL_MAP[id]?.name).filter(Boolean).join(" · ")}
+                  </div>
+                )}
+                <div style={{display:"flex",gap:16,marginTop:12}}>
+                  <button onClick={()=>onView(plan)} style={{fontSize:11,color:T.accent,background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>
+                    View Schedule →
+                  </button>
+                  <button onClick={()=>onDelete(plan.id)} style={{fontSize:11,color:"#EF4444",background:"none",border:"none",cursor:"pointer",padding:0,fontFamily:"'DM Sans',sans-serif"}}>
+                    Delete
+                  </button>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── PLAN DETAIL ─────────────────────────────────────────────────────────────
+    function PlanDetail({plan,progress,onToggle,onBack}){
+      const entries=Object.entries(plan.schedule||{});
+      const isDone=(pid,date,tid)=>!!(progress[pid]?.[date]?.[tid]);
+      return(
+        <div className="fade-up">
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <button onClick={onBack} style={{width:36,height:36,borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:T.text,cursor:"pointer",fontSize:18,fontFamily:"'DM Sans',sans-serif",display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+            <div style={{fontWeight:800,fontSize:16,color:T.text,flex:1}}>{plan.name}</div>
+          </div>
+          {entries.map(([date,ids])=>{
+            const dow=getDOW(date);
+            const isPast=date<TODAY,isToday=date===TODAY;
+            const allDone=ids.length>0&&ids.every(id=>isDone(plan.id,date,id));
+            return(
+              <div key={date} style={{background:isToday?"rgba(56,189,248,0.06)":allDone?"rgba(52,211,153,0.04)":"rgba(15,25,50,0.6)",
+                border:`1px solid ${isToday?"rgba(56,189,248,0.2)":allDone?"rgba(52,211,153,0.15)":"rgba(255,255,255,0.05)"}`,
+                borderRadius:12,padding:"12px 14px",marginBottom:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:ids.length?8:0}}>
+                  <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,color:isToday?T.accent:isPast?"#475569":"#94A3B8"}}>
+                    {isToday?"▶ ":""}{fmtDate(date)}
+                  </span>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    {ids.length>0&&<span style={{fontSize:9,fontWeight:700,background:"rgba(255,255,255,0.06)",color:T.muted,borderRadius:6,padding:"2px 7px",fontFamily:"'Space Mono',monospace"}}>{ids.length} topics</span>}
+                    <span style={{fontSize:10,color:T.muted}}>{COACHING[dow].label}</span>
+                  </div>
+                </div>
+                {ids.length===0?(
+                  <div style={{fontSize:11,color:"#334155"}}>Buffer / Rest</div>
+                ):ids.map(id=>{
+                  const ch=ALL_MAP[id],d=isDone(plan.id,date,id),c=COL[ch?.subj]||"#94A3B8";
+                  return(
+                    <div key={id} onClick={()=>onToggle(plan.id,date,id)}
+                      style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,cursor:"pointer",userSelect:"none"}}>
+                      <Checkbox done={d} color={c} size={16}/>
+                      <span style={{fontSize:13,color:d?"#34D399":"#CBD5E1",textDecoration:d?"line-through":"none",opacity:d?0.6:1}}>{ch?.name}</span>
+                      <div style={{marginLeft:"auto",width:6,height:6,borderRadius:"50%",background:c,flexShrink:0}}/>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── CREATE PLAN WIZARD ───────────────────────────────────────────────────────
+    function CreatePlanView({onSave}){
+      const[step,setStep]=useState(1);
+      const[name,setName]=useState("");
+      const[start,setStart]=useState("");
+      const[end,setEnd]=useState("");
+      const[hpd,setHpd]=useState(4);
+      const[sel,setSel]=useState([]);
+      const[sched,setSched]=useState(null);
+
+      const step1ok=start&&end&&start<=end;
+
+      const doGenerate=()=>{setSched(buildSchedule(sel,start,end,hpd));setStep(3);};
+      const doSave=()=>{
+        const subjects=[...new Set(sel.map(id=>ALL_MAP[id]?.subj).filter(Boolean))];
+        onSave({id:Date.now().toString(),name:name||`Revision – ${fmtDate(start,{month:"short",day:"numeric"})}`,startDate:start,endDate:end,dailyHours:hpd,subjects,selectedTopics:sel,schedule:sched,createdAt:new Date().toISOString()});
+      };
+
+      const inputStyle={width:"100%",padding:"12px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:T.text,fontSize:14,outline:"none",display:"block",transition:"border-color 0.2s"};
+      const labelStyle={display:"block",fontSize:10,fontWeight:700,color:T.muted,marginBottom:7,marginTop:16,letterSpacing:1.2,textTransform:"uppercase",fontFamily:"'Space Mono',monospace"};
+      const primaryBtn={width:"100%",padding:"14px",background:"linear-gradient(135deg,#0EA5E9,#38BDF8)",color:"#0A0F1E",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",marginTop:18,fontFamily:"'DM Sans',sans-serif",letterSpacing:0.5,transition:"opacity 0.2s"};
+
+      // Step 1
+      if(step===1) return(
+        <div className="fade-up">
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:2,marginBottom:6}}>NEW PLAN · STEP 1/3</div>
+          <div style={{fontWeight:800,fontSize:18,color:T.text,marginBottom:18}}>Set Dates & Hours</div>
+          <Card style={{padding:"18px"}}>
+            <label style={labelStyle}>PLAN NAME</label>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. 14-Day Vacation Revision" style={inputStyle}/>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div>
+                <label style={labelStyle}>START DATE</label>
+                <input type="date" value={start} onChange={e=>setStart(e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>END DATE</label>
+                <input type="date" value={end} onChange={e=>setEnd(e.target.value)} style={inputStyle}/>
+              </div>
+            </div>
+            <label style={labelStyle}>DAILY STUDY HOURS</label>
+            <div style={{display:"flex",gap:8,marginTop:4}}>
+              {[2,3,4,5,6].map(h=>(
+                <button key={h} onClick={()=>setHpd(h)} style={{flex:1,padding:"11px 0",borderRadius:10,
+                  border:`2px solid ${hpd===h?T.accent:"rgba(255,255,255,0.08)"}`,
+                  background:hpd===h?"rgba(56,189,248,0.1)":"rgba(255,255,255,0.03)",
+                  color:hpd===h?T.accent:"#64748B",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"'Space Mono',monospace",transition:"all 0.15s"}}>
+                  {h}h
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>setStep(2)} disabled={!step1ok} style={{...primaryBtn,opacity:step1ok?1:0.4,cursor:step1ok?"pointer":"default"}}>
+              Next: Select Topics →
+            </button>
+          </Card>
+        </div>
+      );
+
+      // Step 2
+      if(step===2) return(
+        <div className="fade-up">
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <button onClick={()=>setStep(1)} style={{width:36,height:36,borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:T.text,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>‹</button>
+            <div>
+              <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:2}}>STEP 2/3</div>
+              <div style={{fontWeight:800,fontSize:16,color:T.text}}>Select Topics</div>
+            </div>
+            <span style={{marginLeft:"auto",fontSize:10,fontWeight:700,background:"rgba(56,189,248,0.15)",color:T.accent,borderRadius:20,padding:"4px 12px"}}>{sel.length} selected</span>
+          </div>
+          <Picker label="Mathematics" color={COL.maths} chapters={MATHS} selectedTopics={sel} setSelectedTopics={setSel}/>
+          <Picker label="Physics" color={COL.physics} chapters={PHYSICS} selectedTopics={sel} setSelectedTopics={setSel}/>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:COL_IC.physical,letterSpacing:1.5,padding:"10px 4px 6px"}}>CHEMISTRY</div>
+          <Picker label="Physical Chemistry" color={COL_IC.physical} chapters={CHEM_PHY} selectedTopics={sel} setSelectedTopics={setSel}/>
+          <Picker label="Organic Chemistry" color={COL_IC.organic} chapters={CHEM_ORG} selectedTopics={sel} setSelectedTopics={setSel}/>
+          <Picker label="Inorganic Chemistry" color={COL_IC.inorganic} chapters={CHEM_INO} selectedTopics={sel} setSelectedTopics={setSel}/>
+          <button onClick={doGenerate} disabled={!sel.length} style={{...primaryBtn,opacity:sel.length?1:0.4,cursor:sel.length?"pointer":"default"}}>
+            ✦ Generate Plan ({sel.length} topics) →
+          </button>
+        </div>
+      );
+
+      // Step 3 preview
+      if(step===3){
+        const entries=Object.entries(sched||{}).filter(([,ids])=>ids.length>0);
+        const rest=Object.values(sched||{}).filter(ids=>ids.length===0).length;
+        return(
+          <div className="fade-up">
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+              <button onClick={()=>setStep(2)} style={{width:36,height:36,borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:T.text,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>‹</button>
+              <div>
+                <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:2}}>STEP 3/3</div>
+                <div style={{fontWeight:800,fontSize:16,color:T.text}}>Preview Plan</div>
+              </div>
+              <span style={{marginLeft:"auto",fontSize:10,color:T.muted}}>{entries.length} study days</span>
+            </div>
+            <div style={{maxHeight:"52vh",overflowY:"auto",marginBottom:12}}>
+              {entries.map(([date,ids])=>{
+                const dow=getDOW(date);
+                return(
+                  <div key={date} style={{background:"rgba(15,25,50,0.7)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:10,padding:"11px 13px",marginBottom:7}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,fontWeight:700,color:T.accent}}>{fmtDate(date)}</span>
+                      <span style={{fontSize:10,color:T.muted}}>{COACHING[dow].label}</span>
+                    </div>
+                    {ids.map(id=>{
+                      const ch=ALL_MAP[id];
+                      return(
+                        <div key={id} style={{display:"flex",alignItems:"center",gap:7,marginBottom:5}}>
+                          <div style={{width:6,height:6,borderRadius:"50%",background:COL[ch?.subj]||"#555",flexShrink:0}}/>
+                          <span style={{fontSize:12,color:"#94A3B8"}}>{ch?.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Distribution summary */}
+            {(()=>{
+              const counts=entries.map(([,ids])=>ids.length);
+              const mn=Math.min(...counts),mx=Math.max(...counts);
+              const avg=(counts.reduce((a,b)=>a+b,0)/counts.length).toFixed(1);
+              const byS={};
+              entries.forEach(([,ids])=>ids.forEach(id=>{const s=ALL_MAP[id]?.subj;if(s){byS[s]=(byS[s]||0)+1;}}));
+              return(
+                <div style={{background:"rgba(56,189,248,0.06)",border:"1px solid rgba(56,189,248,0.15)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.accent,letterSpacing:1.5,marginBottom:8}}>DISTRIBUTION SUMMARY</div>
+                  <div style={{display:"flex",gap:16,marginBottom:8}}>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:T.text}}>{avg}</div>
+                      <div style={{fontSize:9,color:T.muted,letterSpacing:0.5}}>AVG/DAY</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:T.text}}>{mn}–{mx}</div>
+                      <div style={{fontSize:9,color:T.muted,letterSpacing:0.5}}>MIN–MAX</div>
+                    </div>
+                    <div style={{textAlign:"center"}}>
+                      <div style={{fontFamily:"'Space Mono',monospace",fontSize:18,fontWeight:700,color:T.text}}>{sel.length}</div>
+                      <div style={{fontSize:9,color:T.muted,letterSpacing:0.5}}>TOTAL</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {Object.entries(byS).map(([s,n])=>(
+                      <span key={s} style={{fontSize:10,fontWeight:700,background:`${COL[s]}18`,color:COL[s],borderRadius:6,padding:"3px 8px"}}>
+                        {s[0].toUpperCase()+s.slice(1)}: {n}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+            <button onClick={doSave} style={{...primaryBtn,background:"linear-gradient(135deg,#064E3B,#34D399)",color:"#0A0F1E"}}>
+              ✦ Save Plan
+            </button>
+          </div>
+        );
+      }
+    }
+
+    // ─── PROGRESS VIEW ────────────────────────────────────────────────────────────
+    function ProgressView({plans,progress}){
+      if(!plans.length) return(
+        <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up">
+          <div style={{fontSize:52,opacity:0.2,fontFamily:"'Space Mono',monospace"}}>{"{}"}</div>
+          <div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No data yet.<br/>Start completing tasks!</div>
+        </div>
+      );
+      const allT=plans.flatMap(p=>[...new Set(Object.values(p.schedule||{}).flat())]);
+      const allD=plans.flatMap(p=>[...new Set(Object.values(progress[p.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))]);
+      const ovPct=allT.length>0?Math.round(allD.length/allT.length*100):0;
+      return(
+        <div className="fade-up">
+          <Card glow style={{padding:"24px",marginBottom:14,textAlign:"center",background:"linear-gradient(135deg,rgba(14,165,233,0.15),rgba(52,211,153,0.08))"}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:60,fontWeight:700,lineHeight:1,background:"linear-gradient(135deg,#38BDF8,#34D399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>
+              {ovPct}<span style={{fontSize:28}}>%</span>
+            </div>
+            <div style={{color:T.muted,fontSize:12,marginTop:8,fontFamily:"'Space Mono',monospace",letterSpacing:1}}>OVERALL PROGRESS</div>
+            <div style={{color:T.muted,fontSize:11,marginTop:4}}>{allD.length} of {allT.length} topics completed</div>
+          </Card>
+          {plans.map(plan=>{
+            const pts=[...new Set(Object.values(plan.schedule||{}).flat())];
+            const dt=[...new Set(Object.values(progress[plan.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
+            const pct=pts.length>0?Math.round(dt.length/pts.length*100):0;
+            const byS={};
+            pts.forEach(id=>{const s=ALL_MAP[id]?.subj;if(!s)return;if(!byS[s])byS[s]={t:0,d:0};byS[s].t++;if(dt.includes(id))byS[s].d++;});
+            return(
+              <Card key={plan.id} style={{padding:"16px",marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontWeight:700,fontSize:14,color:T.text,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{plan.name}</div>
+                  <div style={{fontFamily:"'Space Mono',monospace",fontWeight:700,fontSize:20,color:pct===100?"#34D399":T.accent,marginLeft:12,flexShrink:0}}>{pct}%</div>
+                </div>
+                <Bar pct={pct} color={pct===100?"#34D399":T.accent} h={5}/>
+                <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:9}}>
+                  {Object.entries(byS).map(([s,{t,d}])=>(
+                    <div key={s} style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:13,color:COL[s],width:14,flexShrink:0}}>{SUBJ_ICON[s]}</span>
+                      <span style={{fontSize:12,width:84,textTransform:"capitalize",color:"#94A3B8",flexShrink:0}}>{s}</span>
+                      <div style={{flex:1}}><Bar pct={t>0?Math.round(d/t*100):0} color={COL[s]} h={4}/></div>
+                      <span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,minWidth:34,textAlign:"right",flexShrink:0}}>{d}/{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // ─── ROOT APP ─────────────────────────────────────────────────────────────────
+    function App(){
+      const[tab,setTab]=useState("today");
+      const[plans,setPlans]=useState([]);
+      const[progress,setProgress]=useState({});
+      const[ready,setReady]=useState(false);
+      const[viewing,setViewing]=useState(null);
+
+      useEffect(()=>{
+        const p=LS.get("jee_plans_v4");
+        const pr=LS.get("jee_progress_v4");
+        if(p)setPlans(p);
+        if(pr)setProgress(pr);
+        setReady(true);
+      },[]);
+
+      const savePlans=np=>{setPlans(np);LS.set("jee_plans_v4",np);};
+      const saveProgress=np=>{setProgress(np);LS.set("jee_progress_v4",np);};
+
+      const onToggle=(planId,date,topicId)=>{
+        const np={...progress};
+        if(!np[planId])np[planId]={};
+        if(!np[planId][date])np[planId][date]={};
+        np[planId][date][topicId]=!np[planId][date][topicId];
+        saveProgress(np);
+      };
+
+      const onDelete=id=>{
+        const np=plans.filter(p=>p.id!==id);
+        const npr={...progress};delete npr[id];
+        savePlans(np);saveProgress(npr);
+        if(viewing?.id===id)setViewing(null);
+      };
+
+      if(!ready) return(
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:T.bg,flexDirection:"column",gap:14,color:T.muted}}>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:24,color:T.accent}} className="pulse">JEE 2027</div>
+          <div style={{fontSize:12,letterSpacing:1.5,textTransform:"uppercase",opacity:0.5}}>Loading planner…</div>
+        </div>
+      );
+
+      const TABS=[
+        {k:"today",icon:"◉",lbl:"Today"},
+        {k:"plans",icon:"◧",lbl:"Plans"},
+        {k:"create",icon:"⊕",lbl:"New"},
+        {k:"progress",icon:"◈",lbl:"Progress"},
+      ];
+
+      return(
+        <div style={{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:T.bg,paddingBottom:80,position:"relative"}}>
+          {/* Ambient glow */}
+          <div style={{position:"fixed",top:-80,left:"50%",transform:"translateX(-50%)",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(56,189,248,0.06) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
+
+          {/* Header */}
+          <div style={{position:"sticky",top:0,zIndex:20,background:"rgba(10,15,30,0.92)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(56,189,248,0.08)",padding:"14px 16px 12px"}}>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.muted,letterSpacing:2.5,textTransform:"uppercase",marginBottom:3}}>JEE 2027 · Full Control Mode</div>
+            <div style={{fontWeight:900,fontSize:19,color:T.text,letterSpacing:-0.5}}>
+              {viewing?viewing.name:({today:"Today's Tasks",plans:"My Plans",create:"New Plan",progress:"Progress"}[tab])}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div style={{padding:"14px 12px 8px",position:"relative",zIndex:1}}>
+            {viewing?(
+              <PlanDetail plan={viewing} progress={progress} onToggle={onToggle} onBack={()=>setViewing(null)}/>
+            ):(
+              <>
+                {tab==="today"&&<TodayView plans={plans} progress={progress} onToggle={onToggle}/>}
+                {tab==="plans"&&<PlansView plans={plans} progress={progress} onDelete={onDelete} onView={p=>{setViewing(p);}}/>}
+                {tab==="create"&&<CreatePlanView onSave={plan=>{savePlans([...plans,plan]);setTab("plans");}}/>}
+                {tab==="progress"&&<ProgressView plans={plans} progress={progress}/>}
+              </>
+            )}
+          </div>
+
+          {/* Bottom Nav */}
+          {!viewing&&(
+            <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,
+              background:"rgba(10,15,30,0.96)",backdropFilter:"blur(20px)",
+              borderTop:"1px solid rgba(56,189,248,0.08)",
+              display:"flex",justifyContent:"space-around",padding:"8px 0 14px",zIndex:30}}>
+              {TABS.map(t=>(
+                <button key={t.k} onClick={()=>setTab(t.k)}
+                  style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 12px",
+                    color:tab===t.k?T.accent:T.muted,fontWeight:tab===t.k?700:400,
+                    fontSize:9,letterSpacing:0.8,textTransform:"uppercase",
+                    fontFamily:"'Space Mono',monospace",userSelect:"none",transition:"color 0.15s"}}>
+                  <span style={{fontSize:18,lineHeight:1.1,fontFamily:"monospace"}}>{t.icon}</span>
+                  {t.lbl}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+  </script>
+</body>
+</html>
