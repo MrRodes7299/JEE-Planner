@@ -23,21 +23,3 @@
     }
   ]
 }
-```
-
-7. Scroll down → Click **"Commit changes"** → **"Commit changes"** again ✅
-
----
-
-## Step 3 — Wait 2 Minutes
-
-Just wait. GitHub needs time to deploy. ⏳
-
----
-
-## Step 4 — Test on PWABuilder
-
-1. Go to **pwabuilder.com**
-2. Type your URL:
-```
-https://mrrodes7299.github.io/JEE-Planner/
