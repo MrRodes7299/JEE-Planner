@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="JEE Planner"/>
   <title>JEE 2027 — Study Planner</title>
-  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22JEE%202027%20Study%20Planner%22%2C%22short_name%22%3A%22JEE%20Planner%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230A0F1E%22%2C%22theme_color%22%3A%22%230A0F1E%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fvia.placeholder.com%2F192x192%2F0A0F1E%2F38BDF8%3Ftext%3DJEE%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D"/>
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet"/>
@@ -18,18 +17,19 @@
     body{background:#0A0F1E;font-family:'DM Sans',sans-serif;color:#E2E8F0;overscroll-behavior:none;}
     ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#1E3A5F;border-radius:4px;}
     input,button,select{font-family:'DM Sans',sans-serif;}
-    input[type="date"]{color-scheme:dark;}
+    input[type="date"],input[type="range"],input[type="number"]{color-scheme:dark;}
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
     @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
     @keyframes spin{to{transform:rotate(360deg);}}
     @keyframes pop{0%{transform:scale(0.7);opacity:0;}70%{transform:scale(1.1);}100%{transform:scale(1);opacity:1;}}
-    @keyframes breathe{0%,100%{transform:scale(1);opacity:0.15;}50%{transform:scale(1.18);opacity:0.28;}}
+    @keyframes breathe{0%,100%{transform:scale(1);opacity:0.15;}50%{transform:scale(1.2);opacity:0.3;}}
     @keyframes confetti{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(100vh) rotate(720deg);opacity:0;}}
-    @keyframes ring{0%{stroke-dashoffset:var(--dash);}100%{stroke-dashoffset:0;}}
+    @keyframes slideIn{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
     .fade-up{animation:fadeUp 0.3s ease forwards;}
     .pulse{animation:pulse 2s infinite;}
     .pop{animation:pop 0.4s cubic-bezier(.4,0,.2,1) forwards;}
     .spin{animation:spin 0.8s linear infinite;}
+    .slide-in{animation:slideIn 0.3s cubic-bezier(.4,0,.2,1) forwards;}
     .confetti-piece{position:fixed;width:8px;height:8px;border-radius:2px;animation:confetti 3s ease-in forwards;pointer-events:none;z-index:9999;}
   </style>
 </head>
@@ -54,10 +54,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
 <script type="text/babel">
 const{useState,useEffect,useRef,useCallback,useMemo}=React;
 
-// ── DATA ──────────────────────────────────────────────────────────────────────
 const COACHING={0:{label:"Free Study",subj:null,sec:null},1:{label:"Organic Chem",subj:"chemistry",sec:"organic"},2:{label:"Physical Chem",subj:"chemistry",sec:"physical"},3:{label:"Physics",subj:"physics",sec:null},4:{label:"Physics",subj:"physics",sec:null},5:{label:"Mathematics",subj:"maths",sec:null},6:{label:"Mathematics",subj:"maths",sec:null}};
 const MATHS=["Basics of Mathematics","Set Theory","Logarithms","Quadratic Equations & Expressions","Sequence & Series","Trigonometrical Ratios & Identities","Trigonometrical Equations","Triangle Trigonometry","Determinants","Matrices","Binomial Theorem","Permutations & Combinations","Probability","Straight Line","Pair of Lines","Circle","Parabola","Hyperbola & Ellipse","Complex Numbers","Functions & Graphs","Inverse Trigonometry Functions","Limits","Continuity & Differentiability","Derivatives","Application of Derivatives","Indefinite Integrations","Definite Integration","Area under the Curve","Differential Equation & Applications","Vectors","3-D Geometry","Statistics"].map((n,i)=>({id:`M${String(i+1).padStart(2,'0')}`,name:n,subj:"maths",sec:null}));
 const PHYSICS=["Basics of Physics","Straight Line Motion","Projectile Motion","Relative Motion","Force Dynamics","Work Power Energy","Mechanics of Circular Motion","Theory of Collisions","Rotational Mechanics","Gravitation","Simple Harmonic Motion","Mechanical Properties of Solids & Liquids","Fluid Mechanics","Thermometry, Calorimetry & Thermal Expansion","Kinetic Theory of Gases & Thermodynamics","Electrostatics","Theory of Capacitors","Current Electricity","Magnetostatics","Electromagnetic Induction","D.C. Circuits","A.C. Circuits","Geometric Optics","Wave Mechanics","Interference, Diffraction, Polarisation","Heat Transfer","Modern Physics"].map((n,i)=>({id:`P${String(i+1).padStart(2,'0')}`,name:n,subj:"physics",sec:null}));
@@ -69,13 +69,24 @@ const COL={maths:"#38BDF8",physics:"#34D399",chemistry:"#FBBF24"};
 const COL_IC={organic:"#F87171",physical:"#FBBF24",inorganic:"#A78BFA"};
 const SUBJ_ICON={maths:"∑",physics:"⚡",chemistry:"⚗"};
 const T={bg:"#0A0F1E",card:"rgba(15,25,50,0.9)",cardBorder:"rgba(56,189,248,0.12)",text:"#E2E8F0",muted:"#64748B",accent:"#38BDF8"};
+const XP_RATES={TOPIC_ONTIME:10,TOPIC_LATE:3,PLAN_COMPLETE:100,POMO_SESSION:15};
 
-// ── XP SYSTEM (FIXED) ─────────────────────────────────────────────────────────
-const XP={TOPIC_ONTIME:10,TOPIC_LATE:3,UNCHECK:5,PLAN_COMPLETE:100,STREAK_BONUS:5,POMO_SESSION:15,FORCE_QUIT_PENALTY:10,EXPIRE_PENALTY:10};
+function computeXP(plans,progress,pomoCount=0){
+  let xp=0;
+  plans.forEach(plan=>{
+    const isExpired=plan.endDate<TODAY;
+    const allIds=[...new Set(Object.values(plan.schedule||{}).flat())];
+    const doneIds=[...new Set(Object.values(progress[plan.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
+    doneIds.forEach(tid=>{if(allIds.includes(tid))xp+=isExpired?XP_RATES.TOPIC_LATE:XP_RATES.TOPIC_ONTIME;});
+    if(!isExpired&&doneIds.length===allIds.length&&allIds.length>0)xp+=XP_RATES.PLAN_COMPLETE;
+  });
+  xp+=Math.max(0,pomoCount)*XP_RATES.POMO_SESSION;
+  return Math.max(0,xp);
+}
+
 const LEVELS=[{min:0,max:99,name:"Beginner",icon:"🌱"},{min:100,max:299,name:"Learner",icon:"📖"},{min:300,max:699,name:"Scholar",icon:"🎯"},{min:700,max:1499,name:"Expert",icon:"⚡"},{min:1500,max:2999,name:"Master",icon:"🔥"},{min:3000,max:Infinity,name:"JEE Warrior",icon:"🏆"}];
 const getLevel=xp=>LEVELS.find(l=>xp>=l.min&&xp<=l.max)||LEVELS[0];
 
-// ── BADGES ────────────────────────────────────────────────────────────────────
 const BADGE_DEFS=[
   {id:"first_topic",icon:"🌟",name:"First Step",desc:"Complete your first topic"},
   {id:"streak3",icon:"🔥",name:"On Fire",desc:"3 day study streak"},
@@ -87,37 +98,34 @@ const BADGE_DEFS=[
   {id:"xp100",icon:"💯",name:"Centurion",desc:"Reach 100 XP"},
   {id:"xp500",icon:"⚡",name:"Elite",desc:"Reach 500 XP"},
   {id:"xp1500",icon:"🔥",name:"Master Scholar",desc:"Reach 1500 XP"},
-  {id:"physics_all",icon:"⚛️",name:"Physics Master",desc:"Complete all Physics topics in a plan"},
-  {id:"maths_all",icon:"∑",name:"Math Wizard",desc:"Complete all Maths topics in a plan"},
-  {id:"chem_all",icon:"⚗️",name:"Chemist",desc:"Complete all Chemistry topics in a plan"},
+  {id:"physics_all",icon:"⚛️",name:"Physics Master",desc:"Complete all Physics in a plan"},
+  {id:"maths_all",icon:"∑",name:"Math Wizard",desc:"Complete all Maths in a plan"},
+  {id:"chem_all",icon:"⚗️",name:"Chemist",desc:"Complete all Chemistry in a plan"},
 ];
 
-function checkBadges(state){
-  const{xp,streak,earnedBadges=[],plans,progress,pomoCount=0}=state;
-  const newBadges=[...earnedBadges];
-  const add=id=>{if(!newBadges.includes(id))newBadges.push(id);};
-  const allDone=(planId,subj)=>{
-    const plan=plans.find(p=>p.id===planId);if(!plan)return false;
-    const topics=Object.values(plan.schedule||{}).flat().map(id=>ALL_MAP[id]).filter(t=>t&&(!subj||t.subj===subj));
-    const done=Object.values(progress[planId]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k));
-    return topics.length>0&&topics.every(t=>done.includes(t.id));
-  };
+function computeBadges(state){
+  const{xp,streak,plans,progress,pomoCount=0,earnedBadges=[]}=state;
+  const nb=[...earnedBadges];
+  const add=id=>{if(!nb.includes(id))nb.push(id);};
   const totalDone=plans.flatMap(p=>Object.values(progress[p.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v))).length;
   if(totalDone>=1)add("first_topic");
   if(streak>=3)add("streak3");if(streak>=7)add("streak7");if(streak>=14)add("streak14");
   if(xp>=100)add("xp100");if(xp>=500)add("xp500");if(xp>=1500)add("xp1500");
   if(pomoCount>=5)add("pomo5");if(pomoCount>=25)add("pomo25");
   plans.forEach(p=>{
-    const all=Object.values(p.schedule||{}).flat();const done=Object.values(progress[p.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k));
-    if(all.length>0&&done.length===all.length)add("first_plan");
-    if(allDone(p.id,"physics"))add("physics_all");
-    if(allDone(p.id,"maths"))add("maths_all");
-    if(allDone(p.id,"chemistry"))add("chem_all");
+    const allIds=[...new Set(Object.values(p.schedule||{}).flat())];
+    const doneIds=[...new Set(Object.values(progress[p.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
+    if(allIds.length>0&&doneIds.length===allIds.length)add("first_plan");
+    const physT=allIds.filter(id=>ALL_MAP[id]?.subj==="physics");
+    const mathT=allIds.filter(id=>ALL_MAP[id]?.subj==="maths");
+    const chemT=allIds.filter(id=>ALL_MAP[id]?.subj==="chemistry");
+    if(physT.length>0&&physT.every(id=>doneIds.includes(id)))add("physics_all");
+    if(mathT.length>0&&mathT.every(id=>doneIds.includes(id)))add("maths_all");
+    if(chemT.length>0&&chemT.every(id=>doneIds.includes(id)))add("chem_all");
   });
-  return newBadges;
+  return nb;
 }
 
-// ── UTILS ─────────────────────────────────────────────────────────────────────
 const addDays=(ds,n)=>{const[y,m,d]=ds.split('-').map(Number);const dt=new Date(y,m-1,d+n);return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;};
 const getDOW=ds=>{const[y,m,d]=ds.split('-').map(Number);return new Date(y,m-1,d).getDay();};
 const fmtDate=(ds,opts={})=>{const[y,m,d]=ds.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short',...opts});};
@@ -159,19 +167,16 @@ function spawnConfetti(){
   for(let i=0;i<60;i++){const el=document.createElement("div");el.className="confetti-piece";el.style.cssText=`left:${Math.random()*100}vw;top:-10px;background:${colors[i%colors.length]};animation-delay:${Math.random()*1.5}s;`;document.body.appendChild(el);setTimeout(()=>el.remove(),4500);}
 }
 
-function beep(freq=880,dur=0.3,type="sine"){
-  try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;o.type=type;g.gain.setValueAtTime(0.3,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.start(ctx.currentTime);o.stop(ctx.currentTime+dur);}catch(e){}
+function beep(freq=880,dur=0.4){
+  try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator();const g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=freq;g.gain.setValueAtTime(0.4,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);o.start();o.stop(ctx.currentTime+dur);}catch(e){}
 }
 
-// ── COMPONENTS ────────────────────────────────────────────────────────────────
 function Card({children,style={},glow=false,onClick=null}){return <div onClick={onClick} style={{background:T.card,border:`1px solid ${T.cardBorder}`,borderRadius:16,backdropFilter:"blur(12px)",boxShadow:glow?"0 0 24px rgba(56,189,248,0.1),0 4px 24px rgba(0,0,0,0.4)":"0 4px 20px rgba(0,0,0,0.35)",...style,cursor:onClick?"pointer":style.cursor||"default"}}>{children}</div>;}
 function Bar({pct,color="#38BDF8",h=6}){return <div style={{background:"rgba(255,255,255,0.06)",borderRadius:99,height:h,overflow:"hidden"}}><div style={{width:`${Math.min(100,Math.max(0,pct))}%`,height:"100%",background:`linear-gradient(90deg,${color},${color}cc)`,borderRadius:99,transition:"width 0.5s cubic-bezier(.4,0,.2,1)"}}/></div>;}
 function CB({done,color="#38BDF8",size=22}){return <div style={{width:size,height:size,borderRadius:size/3,border:`2px solid ${done?color:"rgba(255,255,255,0.15)"}`,background:done?color:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.2s",color:"#0A0F1E",fontSize:size*0.55,fontWeight:900}}>{done&&"✓"}</div>;}
 function Tag({label,color}){return <span style={{fontSize:10,fontWeight:700,letterSpacing:0.8,textTransform:"uppercase",background:`${color}18`,color,borderRadius:6,padding:"3px 8px",lineHeight:1.5}}>{label}</span>;}
 function SBadge({status}){const m={active:{c:"#38BDF8",l:"ACTIVE"},completed:{c:"#34D399",l:"COMPLETED"},expired:{c:"#EF4444",l:"EXPIRED"},upcoming:{c:"#FBBF24",l:"UPCOMING"}};const s=m[status]||m.active;return <span style={{fontSize:9,fontWeight:700,letterSpacing:1,background:`${s.c}18`,color:s.c,borderRadius:20,padding:"3px 9px",fontFamily:"'Space Mono',monospace"}}>{s.l}</span>;}
-
-// ── PICKER ────────────────────────────────────────────────────────────────────
-function Picker({label,color,chapters,sel,setSel}){
+  function Picker({label,color,chapters,sel,setSel}){
   const[open,setOpen]=useState(false);
   const ids=chapters.map(c=>c.id);
   const cnt=ids.filter(id=>sel.includes(id)).length;
@@ -200,19 +205,18 @@ function Picker({label,color,chapters,sel,setSel}){
   );
 }
 
-// ── POMODORO HOOK ─────────────────────────────────────────────────────────────
-function usePomodoro(onSessionComplete){
-  const[workMin,setWorkMin]=useState(25);
-  const[shortMin]=useState(5);
-  const[longMin]=useState(15);
-  const[timeLeft,setTimeLeft]=useState(25*60);
+function FocusMode({topic,planName,onComplete,onForceQuit,onPomoComplete,onFocusMinute,pomoSettings}){
+  const{workMin=25,shortMin=5,longMin=15}=pomoSettings;
+  const[timeLeft,setTimeLeft]=useState(workMin*60);
   const[running,setRunning]=useState(false);
-  const[phase,setPhase]=useState("work"); // work|short|long
+  const[phase,setPhase]=useState("work");
   const[session,setSession]=useState(0);
-  const intervalRef=useRef(null);
+  const[showBreak,setShowBreak]=useState(false);
+  const[showQuit,setShowQuit]=useState(false);
+  const[sessionsDone,setSessionsDone]=useState(0);
   const pausedRef=useRef(false);
-
-  useEffect(()=>{setTimeLeft(workMin*60);},[workMin]);
+  const color=COL[topic?.subj]||T.accent;
+  const phaseColor=phase==="work"?color:phase==="short"?"#34D399":"#A78BFA";
 
   useEffect(()=>{
     const onVis=()=>{
@@ -224,140 +228,95 @@ function usePomodoro(onSessionComplete){
   },[running]);
 
   useEffect(()=>{
-    if(!running){clearInterval(intervalRef.current);return;}
-    intervalRef.current=setInterval(()=>{
+    if(!running)return;
+    const id=setInterval(()=>{
       setTimeLeft(t=>{
         if(t<=1){
-          clearInterval(intervalRef.current);
-          setRunning(false);
-          beep(660,0.5);setTimeout(()=>beep(880,0.5),600);
+          clearInterval(id);setRunning(false);
+          beep(660,0.4);setTimeout(()=>beep(880,0.5),500);setTimeout(()=>beep(1100,0.6),1000);
           if(phase==="work"){
-            const ns=session+1;setSession(ns);
-            onSessionComplete&&onSessionComplete();
-            const nextPhase=ns%4===0?"long":"short";
-            setPhase(nextPhase);
-            setTimeLeft(nextPhase==="long"?longMin*60:shortMin*60);
+            const ns=session+1;setSession(ns);setSessionsDone(s=>s+1);
+            onPomoComplete&&onPomoComplete();
+            const np=ns%4===0?"long":"short";
+            setPhase(np);setTimeLeft(np==="long"?longMin*60:shortMin*60);
+            setShowBreak(true);
           } else {setPhase("work");setTimeLeft(workMin*60);}
           return 0;
         }
         return t-1;
       });
     },1000);
-    return()=>clearInterval(intervalRef.current);
+    return()=>clearInterval(id);
   },[running,phase,session,workMin,shortMin,longMin]);
 
-  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
   const total=phase==="work"?workMin*60:phase==="short"?shortMin*60:longMin*60;
   const pct=((total-timeLeft)/total)*100;
-
-  const reset=()=>{setRunning(false);setPhase("work");setTimeLeft(workMin*60);setSession(0);};
-  const skip=()=>{
-    setRunning(false);
-    if(phase==="work"){const ns=session+1;setSession(ns);const np=ns%4===0?"long":"short";setPhase(np);setTimeLeft(np==="long"?longMin*60:shortMin*60);}
-    else{setPhase("work");setTimeLeft(workMin*60);}
-  };
-
-  return{timeLeft,running,setRunning,phase,session,pct,fmt,reset,skip,workMin,setWorkMin,total};
-}
-
-// ── FOCUS MODE ────────────────────────────────────────────────────────────────
-function FocusMode({topic,planName,isExpired,onComplete,onForceQuit,onXP}){
-  const[showQuitConfirm,setShowQuitConfirm]=useState(false);
-  const[sessionsDone,setSessionsDone]=useState(0);
-  const[showBreak,setShowBreak]=useState(false);
-  const pomo=usePomodoro(()=>{
-    setSessionsDone(s=>s+1);
-    onXP&&onXP(XP.POMO_SESSION);
-    setShowBreak(true);
-  });
-
-  const color=COL[topic?.subj]||"#38BDF8";
-  const circumference=2*Math.PI*54;
-  const dash=circumference*(1-pomo.pct/100);
-
-  const handleForceQuit=()=>{
-    pomo.reset();
-    onForceQuit&&onForceQuit();
-  };
+  const circ=2*Math.PI*54;
+  const dash=circ*(1-pct/100);
+  const fmt=s=>`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+  const skip=()=>{setRunning(false);if(phase==="work"){const ns=session+1;setSession(ns);const np=ns%4===0?"long":"short";setPhase(np);setTimeLeft(np==="long"?longMin*60:shortMin*60);}else{setPhase("work");setTimeLeft(workMin*60);}};
 
   return(
-    <div style={{position:"fixed",inset:0,background:"#050810",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,overflow:"hidden"}}>
-      {/* Ambient breathe */}
-      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:400,height:400,borderRadius:"50%",background:`radial-gradient(circle,${color}30 0%,transparent 70%)`,animation:"breathe 4s ease-in-out infinite",pointerEvents:"none"}}/>
-
-      {/* Top bar */}
-      <div style={{position:"absolute",top:0,left:0,right:0,padding:"16px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+    <div style={{position:"fixed",inset:0,background:"#04060F",zIndex:200,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24,overflow:"hidden"}}>
+      <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",width:380,height:380,borderRadius:"50%",background:`radial-gradient(circle,${color}25 0%,transparent 70%)`,animation:"breathe 4s ease-in-out infinite",pointerEvents:"none"}}/>
+      <div style={{position:"absolute",top:0,left:0,right:0,padding:"18px 20px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"rgba(255,255,255,0.3)",letterSpacing:2}}>FOCUS MODE</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.4)",marginTop:2}}>{planName}</div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"rgba(255,255,255,0.25)",letterSpacing:2,marginBottom:2}}>FOCUS MODE</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.35)"}}>{planName}</div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {[...Array(Math.min(sessionsDone,8))].map((_,i)=><div key={i} style={{width:6,height:6,borderRadius:"50%",background:color,opacity:0.8}}/>)}
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"rgba(255,255,255,0.3)",marginLeft:4}}>{sessionsDone} sessions</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          {[...Array(Math.min(sessionsDone,8))].map((_,i)=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:color,opacity:0.7}}/>)}
+          {sessionsDone>0&&<span style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:"rgba(255,255,255,0.3)",marginLeft:4}}>{sessionsDone}🍅</span>}
         </div>
       </div>
-
-      {/* Topic name */}
-      <div style={{textAlign:"center",marginBottom:40,position:"relative",zIndex:1}}>
+      <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,letterSpacing:2.5,color:phaseColor,marginBottom:16,textTransform:"uppercase",opacity:0.8}}>
+        {phase==="work"?"▶ FOCUS SESSION":phase==="short"?"☕ SHORT BREAK":"🌙 LONG BREAK"}
+      </div>
+      <div style={{textAlign:"center",marginBottom:36,position:"relative",zIndex:1,maxWidth:300}}>
         <div style={{fontSize:11,color:color,fontWeight:700,letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"'Space Mono',monospace"}}>{topic?.subj}</div>
-        <div style={{fontWeight:900,fontSize:24,color:"white",lineHeight:1.3,maxWidth:300,margin:"0 auto"}}>{topic?.name}</div>
+        <div style={{fontWeight:900,fontSize:22,color:"white",lineHeight:1.35}}>{topic?.name}</div>
       </div>
-
-      {/* Circular Timer */}
-      <div style={{position:"relative",width:140,height:140,marginBottom:32}}>
-        <svg width="140" height="140" style={{transform:"rotate(-90deg)"}}>
-          <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"/>
-          <circle cx="70" cy="70" r="54" fill="none" stroke={color} strokeWidth="8"
-            strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dash}
-            style={{transition:"stroke-dashoffset 1s linear"}}/>
+      <div style={{position:"relative",width:148,height:148,marginBottom:36}}>
+        <svg width="148" height="148" style={{transform:"rotate(-90deg)"}}>
+          <circle cx="74" cy="74" r="54" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="9"/>
+          <circle cx="74" cy="74" r="54" fill="none" stroke={phaseColor} strokeWidth="9" strokeLinecap="round"
+            strokeDasharray={circ} strokeDashoffset={dash} style={{transition:"stroke-dashoffset 1s linear,stroke 0.5s"}}/>
         </svg>
         <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-          <div style={{fontFamily:"'Space Mono',monospace",fontSize:30,fontWeight:700,color:"white",lineHeight:1}}>{pomo.fmt(pomo.timeLeft)}</div>
-          <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginTop:4,letterSpacing:1.5,textTransform:"uppercase"}}>{pomo.phase==="work"?"FOCUS":pomo.phase==="short"?"SHORT BREAK":"LONG BREAK"}</div>
+          <div style={{fontFamily:"'Space Mono',monospace",fontSize:32,fontWeight:700,color:"white",lineHeight:1}}>{fmt(timeLeft)}</div>
+          <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginTop:5,letterSpacing:1.5,fontFamily:"'Space Mono',monospace"}}>{workMin}m/{shortMin}m/{longMin}m</div>
         </div>
       </div>
-
-      {/* Controls */}
-      <div style={{display:"flex",gap:12,marginBottom:32}}>
-        <button onClick={()=>pomo.setRunning(!pomo.running)} style={{width:64,height:64,borderRadius:"50%",background:pomo.running?`${color}22`:`${color}`,border:`2px solid ${color}`,color:pomo.running?"white":"#0A0F1E",fontSize:22,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>
-          {pomo.running?"⏸":"▶"}
+      <div style={{display:"flex",gap:16,marginBottom:32,alignItems:"center"}}>
+        <button onClick={skip} style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>⏭</button>
+        <button onClick={()=>setRunning(!running)} style={{width:68,height:68,borderRadius:"50%",background:running?"rgba(255,255,255,0.08)":phaseColor,border:`2px solid ${phaseColor}`,color:running?phaseColor:"#0A0F1E",fontSize:26,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s",boxShadow:running?"none":`0 0 20px ${phaseColor}44`}}>
+          {running?"⏸":"▶"}
         </button>
-        <button onClick={pomo.skip} style={{width:48,height:48,borderRadius:"50%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.5)",fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",marginTop:8}}>⏭</button>
+        <button onClick={()=>setRunning(false)} style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",color:"rgba(255,255,255,0.4)",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>⏹</button>
       </div>
-
-      {/* Mark done */}
-      <button onClick={onComplete} style={{padding:"13px 32px",background:`linear-gradient(135deg,${color},${color}aa)`,color:"#0A0F1E",border:"none",borderRadius:50,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",marginBottom:16,letterSpacing:0.3}}>
-        ✓ Mark Topic Done
-      </button>
-
-      {/* Force quit */}
-      <button onClick={()=>setShowQuitConfirm(true)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.2)",fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",padding:"8px 16px"}}>
-        Exit Focus Mode
-      </button>
-
-      {/* Break overlay */}
+      <button onClick={onComplete} style={{padding:"13px 36px",background:`linear-gradient(135deg,${color},${color}99)`,color:"#0A0F1E",border:"none",borderRadius:50,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",marginBottom:16,boxShadow:`0 4px 20px ${color}33`}}>✓ Mark Topic Done</button>
+      <button onClick={()=>setShowQuit(true)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.18)",fontSize:11,cursor:"pointer",padding:"8px 16px",fontFamily:"'DM Sans',sans-serif"}}>Exit Focus Mode</button>
       {showBreak&&(
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>
-          <div className="pop" style={{textAlign:"center",padding:32}}>
-            <div style={{fontSize:52,marginBottom:12}}>☕</div>
-            <div style={{fontWeight:800,fontSize:20,color:"white",marginBottom:8}}>Session Complete!</div>
-            <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:8}}>+{XP.POMO_SESSION} XP earned</div>
-            <div style={{fontSize:12,color:color,marginBottom:24}}>{pomo.phase==="work"?"Take a break, you earned it.":pomo.phase==="short"?"5 min break":"15 min break — you earned it!"}</div>
-            <button onClick={()=>setShowBreak(false)} style={{padding:"12px 28px",background:color,color:"#0A0F1E",border:"none",borderRadius:50,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Continue →</button>
+        <div style={{position:"absolute",inset:0,background:"rgba(4,6,15,0.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>
+          <div className="pop" style={{textAlign:"center",padding:"32px 24px",maxWidth:300}}>
+            <div style={{fontSize:56,marginBottom:16}}>{phase==="work"?"🎯":"☕"}</div>
+            <div style={{fontWeight:800,fontSize:22,color:"white",marginBottom:8}}>Session Complete!</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.4)",marginBottom:6}}>+{XP_RATES.POMO_SESSION} XP earned</div>
+            <div style={{fontSize:12,color:phaseColor,marginBottom:28,lineHeight:1.7}}>{phase==="work"?"Take a break!":phase==="short"?"5 min break...":"Long break — recharge fully!"}</div>
+            <button onClick={()=>setShowBreak(false)} style={{padding:"12px 32px",background:phaseColor,color:"#0A0F1E",border:"none",borderRadius:50,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>{phase==="work"?"Start Break →":"Back to Focus →"}</button>
           </div>
         </div>
       )}
-
-      {/* Quit confirm */}
-      {showQuitConfirm&&(
-        <div style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.9)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>
-          <div className="pop" style={{background:"rgba(15,25,50,0.98)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:20,padding:"28px 24px",maxWidth:320,width:"90%",textAlign:"center"}}>
-            <div style={{fontSize:36,marginBottom:12}}>⚠️</div>
+      {showQuit&&(
+        <div style={{position:"absolute",inset:0,background:"rgba(4,6,15,0.95)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>
+          <div className="pop" style={{background:"rgba(15,25,50,0.98)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:20,padding:"28px 24px",maxWidth:320,width:"90%",textAlign:"center"}}>
+            <div style={{fontSize:40,marginBottom:12}}>⚠️</div>
             <div style={{fontWeight:800,fontSize:18,color:"white",marginBottom:8}}>Leave Focus Mode?</div>
-            <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginBottom:20,lineHeight:1.7}}>You will lose this session's progress.<br/><span style={{color:"#EF4444",fontWeight:700}}>-{XP.FORCE_QUIT_PENALTY} XP penalty</span></div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.45)",marginBottom:6,lineHeight:1.7}}>Your timer progress will be lost.</div>
+            <div style={{fontSize:12,color:"#EF4444",fontWeight:700,marginBottom:24}}>Full screen lock needs the Android app.</div>
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setShowQuitConfirm(false)} style={{flex:1,padding:"12px",background:"rgba(255,255,255,0.05)",color:"white",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,cursor:"pointer",fontSize:13,fontFamily:"'DM Sans',sans-serif"}}>Stay Focused</button>
-              <button onClick={handleForceQuit} style={{flex:1,padding:"12px",background:"rgba(239,68,68,0.15)",color:"#EF4444",border:"1px solid rgba(239,68,68,0.3)",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>Exit (-{XP.FORCE_QUIT_PENALTY}XP)</button>
+              <button onClick={()=>setShowQuit(false)} style={{flex:1,padding:"12px",background:"rgba(255,255,255,0.05)",color:"white",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,cursor:"pointer",fontSize:13,fontFamily:"'DM Sans',sans-serif",fontWeight:700}}>Stay</button>
+              <button onClick={onForceQuit} style={{flex:1,padding:"12px",background:"rgba(239,68,68,0.12)",color:"#EF4444",border:"1px solid rgba(239,68,68,0.25)",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>Exit</button>
             </div>
           </div>
         </div>
@@ -366,7 +325,6 @@ function FocusMode({topic,planName,isExpired,onComplete,onForceQuit,onXP}){
   );
 }
 
-// ── CERTIFICATE ───────────────────────────────────────────────────────────────
 function Certificate({plan,progress,onClose}){
   const all=[...new Set(Object.values(plan.schedule||{}).flat())];
   const done=[...new Set(Object.values(progress[plan.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
@@ -374,13 +332,13 @@ function Certificate({plan,progress,onClose}){
   const byS={};all.forEach(id=>{const s=ALL_MAP[id]?.subj;if(!s)return;if(!byS[s])byS[s]={t:0,d:0};byS[s].t++;if(done.includes(id))byS[s].d++;});
   useEffect(()=>{if(pct===100)spawnConfetti();},[]);
   return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:150,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div className="pop" style={{background:"linear-gradient(135deg,#0F2044,#1a3a6b)",border:"1px solid rgba(56,189,248,0.3)",borderRadius:24,padding:"32px 24px",maxWidth:400,width:"100%",textAlign:"center",boxShadow:"0 0 60px rgba(56,189,248,0.15)"}}>
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",zIndex:150,display:"flex",alignItems:"center",justifyContent:"center",padding:16,overflowY:"auto"}}>
+      <div className="pop" style={{background:"linear-gradient(135deg,#0F2044,#1a3a6b)",border:"1px solid rgba(56,189,248,0.3)",borderRadius:24,padding:"32px 24px",maxWidth:400,width:"100%",textAlign:"center"}}>
         <div style={{fontSize:52,marginBottom:8}}>{pct===100?"🏆":"📋"}</div>
         <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.accent,letterSpacing:2,marginBottom:6}}>{pct===100?"PLAN COMPLETED!":"PLAN SUMMARY"}</div>
         <div style={{fontWeight:900,fontSize:20,color:T.text,marginBottom:4}}>{plan.name}</div>
         <div style={{fontSize:11,color:T.muted,marginBottom:20,fontFamily:"'Space Mono',monospace"}}>{fmtDate(plan.startDate)} → {fmtDate(plan.endDate)}</div>
-        <div style={{fontFamily:"'Space Mono',monospace",fontSize:56,fontWeight:700,lineHeight:1,background:`linear-gradient(135deg,${pct===100?"#34D399,#38BDF8":"#FBBF24,#F87171"})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>{pct}<span style={{fontSize:24}}>%</span></div>
+        <div style={{fontFamily:"'Space Mono',monospace",fontSize:52,fontWeight:700,lineHeight:1,background:`linear-gradient(135deg,${pct===100?"#34D399,#38BDF8":"#FBBF24,#F87171"})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:4}}>{pct}<span style={{fontSize:22}}>%</span></div>
         <div style={{fontSize:12,color:T.muted,marginBottom:20}}>{done.length} of {all.length} topics completed</div>
         <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
           {Object.entries(byS).map(([s,{t,d}])=>(
@@ -392,43 +350,36 @@ function Certificate({plan,progress,onClose}){
             </div>
           ))}
         </div>
-        {pct===100&&<div style={{background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:10,padding:"10px",marginBottom:16,fontSize:12,color:"#34D399"}}>+{XP.PLAN_COMPLETE} XP earned! 🎉</div>}
+        {pct===100&&<div style={{background:"rgba(52,211,153,0.1)",border:"1px solid rgba(52,211,153,0.2)",borderRadius:10,padding:"10px",marginBottom:16,fontSize:12,color:"#34D399"}}>+{XP_RATES.PLAN_COMPLETE} XP earned! 🎉</div>}
         <button onClick={onClose} style={{width:"100%",padding:"13px",background:"linear-gradient(135deg,#0EA5E9,#38BDF8)",color:"#0A0F1E",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Close</button>
       </div>
     </div>
   );
 }
 
-// ── TODAY VIEW ────────────────────────────────────────────────────────────────
 function TodayView({plans,progress,onToggle,streak,xp,onStartFocus}){
   const cs=COACHING[getDOW(TODAY)];
   const tasks=plans.filter(p=>getPlanStatus(p,progress)==="active").flatMap(plan=>(plan.schedule?.[TODAY]||[]).map(tid=>({planId:plan.id,planName:plan.name,id:tid,ch:ALL_MAP[tid],done:!!(progress[plan.id]?.[TODAY]?.[tid])})));
   const doneCount=tasks.filter(t=>t.done).length;
   const pct=tasks.length>0?Math.round(doneCount/tasks.length*100):0;
   const lv=getLevel(xp);
-  // JEE countdown
-  const jeeDate=new Date("2027-04-05");
-  const daysLeft=Math.ceil((jeeDate-new Date())/(1000*60*60*24));
-
+  const daysLeft=Math.ceil((new Date("2027-04-05")-new Date())/(1000*60*60*24));
   return(
     <div className="fade-up">
-      {/* XP + Streak */}
       <div style={{display:"flex",gap:8,marginBottom:12}}>
         <Card style={{flex:1,padding:"12px 14px",display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:22}}>{lv.icon}</span>
           <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.accent,letterSpacing:1}}>{lv.name}</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:15,fontWeight:700,color:T.text}}>{xp} <span style={{fontSize:9,color:T.muted}}>XP</span></div></div>
         </Card>
-        <Card style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:8,minWidth:90}}>
-          <span style={{fontSize:22}}>🔥</span>
+        <Card style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:8,minWidth:88}}>
+          <span style={{fontSize:20}}>🔥</span>
           <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#FBBF24",letterSpacing:1}}>STREAK</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:15,fontWeight:700,color:T.text}}>{streak}d</div></div>
         </Card>
-        <Card style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:8,minWidth:90}}>
+        <Card style={{padding:"12px 14px",display:"flex",alignItems:"center",gap:8,minWidth:88}}>
           <span style={{fontSize:18}}>🎯</span>
           <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:"#F87171",letterSpacing:1}}>JEE</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:15,fontWeight:700,color:T.text}}>{daysLeft}d</div></div>
         </Card>
       </div>
-
-      {/* Today card */}
       <Card glow style={{padding:"18px",marginBottom:12}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
           <div>
@@ -440,26 +391,18 @@ function TodayView({plans,progress,onToggle,streak,xp,onStartFocus}){
         </div>
         {tasks.length>0&&<Bar pct={pct} color={pct===100?"#34D399":T.accent} h={5}/>}
       </Card>
-
       {!tasks.length?<div style={{textAlign:"center",color:T.muted,paddingTop:60}}><div style={{fontSize:52,opacity:0.2}}>◎</div><div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.6}}>No tasks today.<br/>Create a plan to begin.</div></div>
       :tasks.map((t,i)=>{
         const c=COL[t.ch?.subj]||"#94A3B8";
         return(
           <div key={t.id+t.planId} style={{background:t.done?"rgba(52,211,153,0.06)":"rgba(15,25,50,0.8)",border:`1px solid ${t.done?"rgba(52,211,153,0.2)":"rgba(255,255,255,0.06)"}`,borderRadius:14,padding:"12px 14px",marginBottom:8,animation:`fadeUp 0.3s ${i*0.05}s ease both`}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div onClick={()=>onToggle(t.planId,TODAY,t.id)} style={{cursor:"pointer"}}>
-                <CB done={t.done} color={c}/>
-              </div>
+              <div onClick={()=>onToggle(t.planId,TODAY,t.id)} style={{cursor:"pointer",flexShrink:0}}><CB done={t.done} color={c}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:14,color:t.done?"#34D399":T.text,textDecoration:t.done?"line-through":"none",opacity:t.done?0.7:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t.ch?.name}</div>
-                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{t.planName}{t.done&&<span style={{color:"#34D399",marginLeft:6,fontSize:10}}>+{XP.TOPIC_ONTIME}XP</span>}</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{t.planName} <span style={{color:c,fontSize:9}}>· {t.ch?.subj}</span></div>
               </div>
-              {!t.done&&(
-                <button onClick={()=>onStartFocus({topic:t.ch,planId:t.planId,topicId:t.id,planName:t.planName,isExpired:false})}
-                  style={{padding:"6px 12px",background:`${c}18`,border:`1px solid ${c}33`,borderRadius:8,color:c,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>
-                  🎯 Focus
-                </button>
-              )}
+              {!t.done&&<button onClick={()=>onStartFocus({topic:t.ch,planId:t.planId,topicId:t.id,planName:t.planName})} style={{padding:"6px 12px",background:`${c}18`,border:`1px solid ${c}33`,borderRadius:8,color:c,fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",flexShrink:0}}>🎯 Focus</button>}
             </div>
           </div>
         );
@@ -468,18 +411,17 @@ function TodayView({plans,progress,onToggle,streak,xp,onStartFocus}){
   );
 }
 
-// ── PLANS VIEW ────────────────────────────────────────────────────────────────
 function PlansView({plans,progress,onDelete,onView,onExtend,onStartFocus}){
   const[tab,setTab]=useState("active");
   const active=plans.filter(p=>["active","upcoming"].includes(getPlanStatus(p,progress)));
   const arch=plans.filter(p=>["completed","expired"].includes(getPlanStatus(p,progress)));
   const show=tab==="active"?active:arch;
-  if(!plans.length)return <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up"><div style={{fontSize:52,opacity:0.2,fontFamily:"'Space Mono',monospace"}}>[ ]</div><div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No plans yet.<br/>Tap <b style={{color:T.accent}}>New Plan</b> to create one.</div></div>;
+  if(!plans.length)return <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up"><div style={{fontSize:52,opacity:0.2,fontFamily:"'Space Mono',monospace"}}>[ ]</div><div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No plans yet.<br/>Tap <b style={{color:T.accent}}>New</b> to create one.</div></div>;
   return(
     <div className="fade-up">
       <div style={{display:"flex",gap:8,marginBottom:14}}>
         {[["active",`Active (${active.length})`],["archive",`Archive (${arch.length})`]].map(([k,l])=>(
-          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"9px",borderRadius:10,border:`1.5px solid ${tab===k?T.accent:"rgba(255,255,255,0.08)"}`,background:tab===k?"rgba(56,189,248,0.1)":"rgba(255,255,255,0.03)",color:tab===k?T.accent:T.muted,fontWeight:700,cursor:"pointer",fontSize:11,fontFamily:"'Space Mono',monospace",letterSpacing:0.3}}>{l}</button>
+          <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"9px",borderRadius:10,border:`1.5px solid ${tab===k?T.accent:"rgba(255,255,255,0.08)"}`,background:tab===k?"rgba(56,189,248,0.1)":"rgba(255,255,255,0.03)",color:tab===k?T.accent:T.muted,fontWeight:700,cursor:"pointer",fontSize:11,fontFamily:"'Space Mono',monospace"}}>{l}</button>
         ))}
       </div>
       {!show.length?<div style={{textAlign:"center",color:T.muted,paddingTop:40,fontSize:13,opacity:0.5}}>{tab==="active"?"No active plans.":"No archived plans yet."}</div>
@@ -506,12 +448,8 @@ function PlansView({plans,progress,onDelete,onView,onExtend,onStartFocus}){
             </div>
             <Bar pct={pct} color={st==="completed"?"#34D399":st==="expired"?"#EF4444":T.accent}/>
             <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>{(plan.subjects||[]).map(s=><Tag key={s} label={s} color={COL[s]}/>)}</div>
-            {st==="active"&&todayT.length>0&&(
-              <div style={{marginTop:10,fontSize:11,color:T.muted,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:10,lineHeight:1.7}}>
-                <span style={{color:T.accent,fontWeight:700}}>Today → </span>{todayT.map(id=>ALL_MAP[id]?.name).filter(Boolean).join(" · ")}
-              </div>
-            )}
-            {st==="expired"&&<div style={{marginTop:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,fontSize:11,color:"#EF4444"}}>⚠️ Plan expired — {all.length-done.length} topics incomplete</div>}
+            {st==="active"&&todayT.length>0&&<div style={{marginTop:10,fontSize:11,color:T.muted,borderTop:"1px solid rgba(255,255,255,0.05)",paddingTop:10,lineHeight:1.7}}><span style={{color:T.accent,fontWeight:700}}>Today → </span>{todayT.map(id=>ALL_MAP[id]?.name).filter(Boolean).join(" · ")}</div>}
+            {st==="expired"&&<div style={{marginTop:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:8,fontSize:11,color:"#EF4444"}}>⚠️ Expired — {all.length-done.length} topics incomplete</div>}
             <div style={{display:"flex",gap:14,marginTop:12,flexWrap:"wrap"}}>
               <button onClick={()=>onView(plan,false)} style={{fontSize:11,color:T.accent,background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>View Schedule →</button>
               {(st==="completed"||st==="expired")&&<button onClick={()=>onView(plan,true)} style={{fontSize:11,color:"#34D399",background:"none",border:"none",cursor:"pointer",padding:0,fontWeight:700,fontFamily:"'DM Sans',sans-serif"}}>📋 Summary</button>}
@@ -525,7 +463,6 @@ function PlansView({plans,progress,onDelete,onView,onExtend,onStartFocus}){
   );
 }
 
-// ── PLAN DETAIL ───────────────────────────────────────────────────────────────
 function PlanDetail({plan,progress,onToggle,onBack,onStartFocus}){
   const entries=Object.entries(plan.schedule||{});
   const isDone=(pid,date,tid)=>!!(progress[pid]?.[date]?.[tid]);
@@ -553,9 +490,9 @@ function PlanDetail({plan,progress,onToggle,onBack,onStartFocus}){
               const ch=ALL_MAP[id],d=isDone(plan.id,date,id),c=COL[ch?.subj]||"#94A3B8";
               return(
                 <div key={id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                  <div onClick={()=>onToggle(plan.id,date,id)} style={{cursor:"pointer"}}><CB done={d} color={c} size={16}/></div>
+                  <div onClick={()=>onToggle(plan.id,date,id)} style={{cursor:"pointer",flexShrink:0}}><CB done={d} color={c} size={16}/></div>
                   <span style={{fontSize:13,color:d?"#34D399":"#CBD5E1",textDecoration:d?"line-through":"none",opacity:d?0.6:1,flex:1}}>{ch?.name}</span>
-                  {!d&&isToday&&<button onClick={()=>onStartFocus({topic:ch,planId:plan.id,topicId:id,planName:plan.name,isExpired:st==="expired"})} style={{padding:"3px 8px",background:`${c}15`,border:`1px solid ${c}30`,borderRadius:6,color:c,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>Focus</button>}
+                  {!d&&isToday&&<button onClick={()=>onStartFocus({topic:ch,planId:plan.id,topicId:id,planName:plan.name})} style={{padding:"3px 8px",background:`${c}15`,border:`1px solid ${c}30`,borderRadius:6,color:c,fontSize:9,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>Focus</button>}
                   <div style={{width:6,height:6,borderRadius:"50%",background:c,flexShrink:0}}/>
                 </div>
               );
@@ -566,9 +503,7 @@ function PlanDetail({plan,progress,onToggle,onBack,onStartFocus}){
     </div>
   );
 }
-
-// ── CREATE PLAN ───────────────────────────────────────────────────────────────
-function CreateView({onSave}){
+  function CreateView({onSave}){
   const[step,setStep]=useState(1);
   const[name,setName]=useState("");
   const[start,setStart]=useState("");
@@ -581,7 +516,6 @@ function CreateView({onSave}){
   const lbl={display:"block",fontSize:10,fontWeight:700,color:T.muted,marginBottom:7,marginTop:16,letterSpacing:1.2,textTransform:"uppercase",fontFamily:"'Space Mono',monospace"};
   const pb={width:"100%",padding:"14px",background:"linear-gradient(135deg,#0EA5E9,#38BDF8)",color:"#0A0F1E",border:"none",borderRadius:12,fontSize:14,fontWeight:800,cursor:"pointer",marginTop:18,fontFamily:"'DM Sans',sans-serif"};
   const back=<button onClick={()=>setStep(s=>s-1)} style={{width:36,height:36,borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:T.text,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Sans',sans-serif"}}>‹</button>;
-
   if(step===1)return(
     <div className="fade-up">
       <div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:2,marginBottom:6}}>NEW PLAN · 1/3</div>
@@ -600,7 +534,6 @@ function CreateView({onSave}){
       </Card>
     </div>
   );
-
   if(step===2)return(
     <div className="fade-up">
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>{back}<div><div style={{fontFamily:"'Space Mono',monospace",fontSize:10,color:T.muted,letterSpacing:2}}>2/3</div><div style={{fontWeight:800,fontSize:16,color:T.text}}>Select Topics</div></div><span style={{marginLeft:"auto",fontSize:10,fontWeight:700,background:"rgba(56,189,248,0.15)",color:T.accent,borderRadius:20,padding:"4px 12px"}}>{sel.length} selected</span></div>
@@ -613,7 +546,6 @@ function CreateView({onSave}){
       <button onClick={()=>{setSched(buildSchedule(sel,start,end));setStep(3);}} disabled={!sel.length} style={{...pb,opacity:sel.length?1:0.4,cursor:sel.length?"pointer":"default"}}>✦ Generate Plan ({sel.length} topics) →</button>
     </div>
   );
-
   if(step===3){
     const entries=Object.entries(sched||{}).filter(([,ids])=>ids.length>0);
     const counts=entries.map(([,ids])=>ids.length);
@@ -644,64 +576,34 @@ function CreateView({onSave}){
   }
 }
 
-// ── PROGRESS VIEW ─────────────────────────────────────────────────────────────
 function ProgressView({plans,progress,xp,streak,earnedBadges=[],pomoCount=0}){
-  const[showBadges,setShowBadges]=useState(false);
   const lv=getLevel(xp),nvl=getLevel(xp+1);
   const xpToNext=nvl.min>xp?nvl.min-xp:0;
   const allT=plans.flatMap(p=>[...new Set(Object.values(p.schedule||{}).flat())]);
   const allD=plans.flatMap(p=>[...new Set(Object.values(progress[p.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))]);
   const ov=allT.length>0?Math.round(allD.length/allT.length*100):0;
-
-  if(!plans.length)return <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up"><div style={{fontSize:52,opacity:0.2,fontFamily:"'Space Mono',monospace"}}>{"{}"}</div><div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No data yet.<br/>Complete tasks to earn XP!</div></div>;
-
+  if(!plans.length)return <div style={{textAlign:"center",color:T.muted,paddingTop:70}} className="fade-up"><div style={{fontSize:52,opacity:0.2}}>{ "{}" }</div><div style={{marginTop:16,fontSize:14,lineHeight:1.8,opacity:0.5}}>No data yet.<br/>Complete tasks to earn XP!</div></div>;
   return(
     <div className="fade-up">
-      {/* Level card */}
       <Card glow style={{padding:"20px",marginBottom:12,background:"linear-gradient(135deg,rgba(56,189,248,0.12),rgba(52,211,153,0.06))"}}>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
           <span style={{fontSize:44}}>{lv.icon}</span>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.muted,letterSpacing:1.5}}>LEVEL</div>
-            <div style={{fontWeight:900,fontSize:20,color:T.text}}>{lv.name}</div>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:T.accent,fontWeight:700}}>{xp} XP</div>
-          </div>
-          <div style={{textAlign:"center"}}>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:22,fontWeight:700,color:"#FBBF24"}}>🔥{streak}</div>
-            <div style={{fontSize:9,color:T.muted,letterSpacing:1}}>STREAK</div>
-            <div style={{fontFamily:"'Space Mono',monospace",fontSize:14,fontWeight:700,color:"#A78BFA",marginTop:4}}>⏱️{pomoCount}</div>
-            <div style={{fontSize:9,color:T.muted}}>POMOS</div>
-          </div>
+          <div style={{flex:1}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.muted,letterSpacing:1.5}}>LEVEL</div><div style={{fontWeight:900,fontSize:20,color:T.text}}>{lv.name}</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:14,color:T.accent,fontWeight:700}}>{xp} XP</div></div>
+          <div style={{textAlign:"center"}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#FBBF24"}}>🔥{streak}</div><div style={{fontSize:9,color:T.muted,letterSpacing:1,marginBottom:6}}>STREAK</div><div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#A78BFA"}}>⏱️{pomoCount}</div><div style={{fontSize:9,color:T.muted,letterSpacing:1}}>POMOS</div></div>
         </div>
         {xpToNext>0&&<><div style={{fontSize:10,color:T.muted,marginBottom:6,fontFamily:"'Space Mono',monospace"}}>{xpToNext} XP to {nvl.name} {nvl.icon}</div><Bar pct={Math.round(((xp-lv.min)/Math.max(1,nvl.min-lv.min))*100)} color={T.accent} h={5}/></>}
       </Card>
-
-      {/* Badges */}
       <Card style={{padding:"16px",marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontWeight:700,fontSize:14,color:T.text}}>🏅 Badges</div>
-          <div style={{fontSize:11,color:T.muted}}>{earnedBadges.length}/{BADGE_DEFS.length}</div>
-        </div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontWeight:700,fontSize:14,color:T.text}}>🏅 Badges</div><div style={{fontSize:11,color:T.muted}}>{earnedBadges.length}/{BADGE_DEFS.length}</div></div>
         <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          {BADGE_DEFS.map(b=>{
-            const earned=earnedBadges.includes(b.id);
-            return(
-              <div key={b.id} title={b.desc} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"8px 10px",background:earned?"rgba(56,189,248,0.08)":"rgba(255,255,255,0.03)",border:`1px solid ${earned?"rgba(56,189,248,0.2)":"rgba(255,255,255,0.06)"}`,borderRadius:10,opacity:earned?1:0.35,minWidth:56,cursor:"default"}}>
-                <span style={{fontSize:22,filter:earned?"none":"grayscale(1)"}}>{b.icon}</span>
-                <span style={{fontSize:8,color:earned?T.accent:T.muted,fontWeight:700,textAlign:"center",lineHeight:1.2,fontFamily:"'Space Mono',monospace"}}>{b.name}</span>
-              </div>
-            );
-          })}
+          {BADGE_DEFS.map(b=>{const earned=earnedBadges.includes(b.id);return <div key={b.id} title={b.desc} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"8px 10px",background:earned?"rgba(56,189,248,0.08)":"rgba(255,255,255,0.03)",border:`1px solid ${earned?"rgba(56,189,248,0.2)":"rgba(255,255,255,0.05)"}`,borderRadius:10,opacity:earned?1:0.3,minWidth:54}}><span style={{fontSize:20,filter:earned?"none":"grayscale(1)"}}>{b.icon}</span><span style={{fontSize:8,color:earned?T.accent:T.muted,fontWeight:700,textAlign:"center",lineHeight:1.2,fontFamily:"'Space Mono',monospace"}}>{b.name}</span></div>;})}
         </div>
       </Card>
-
-      {/* Overall */}
       <Card style={{padding:"20px",marginBottom:12,textAlign:"center"}}>
         <div style={{fontFamily:"'Space Mono',monospace",fontSize:52,fontWeight:700,lineHeight:1,background:"linear-gradient(135deg,#38BDF8,#34D399)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>{ov}<span style={{fontSize:22}}>%</span></div>
         <div style={{color:T.muted,fontSize:11,marginTop:6,fontFamily:"'Space Mono',monospace",letterSpacing:1}}>OVERALL PROGRESS</div>
         <div style={{color:T.muted,fontSize:11,marginTop:4}}>{allD.length} of {allT.length} topics done</div>
       </Card>
-
       {plans.map(plan=>{
         const pts=[...new Set(Object.values(plan.schedule||{}).flat())];
         const dt=[...new Set(Object.values(progress[plan.id]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
@@ -710,10 +612,7 @@ function ProgressView({plans,progress,xp,streak,earnedBadges=[],pomoCount=0}){
         const byS={};pts.forEach(id=>{const s=ALL_MAP[id]?.subj;if(!s)return;if(!byS[s])byS[s]={t:0,d:0};byS[s].t++;if(dt.includes(id))byS[s].d++;});
         return(
           <Card key={plan.id} style={{padding:"16px",marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{plan.name}</div><SBadge status={st}/></div>
-              <div style={{fontFamily:"'Space Mono',monospace",fontWeight:700,fontSize:20,color:st==="completed"?"#34D399":st==="expired"?"#EF4444":T.accent,marginLeft:12,flexShrink:0}}>{pct}%</div>
-            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,color:T.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:4}}>{plan.name}</div><SBadge status={st}/></div><div style={{fontFamily:"'Space Mono',monospace",fontWeight:700,fontSize:20,color:st==="completed"?"#34D399":st==="expired"?"#EF4444":T.accent,marginLeft:12,flexShrink:0}}>{pct}%</div></div>
             <Bar pct={pct} color={st==="completed"?"#34D399":st==="expired"?"#EF4444":T.accent} h={5}/>
             <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:8}}>
               {Object.entries(byS).map(([s,{t,d}])=>(
@@ -732,7 +631,66 @@ function ProgressView({plans,progress,xp,streak,earnedBadges=[],pomoCount=0}){
   );
 }
 
-// ── EXTEND MODAL ──────────────────────────────────────────────────────────────
+function SettingsView({user,pomoSettings,setPomoSettings,focusMinutes,streak,pomoCount,xp,onSignOut}){
+  const[saved,setSaved]=useState(false);
+  const[work,setWork]=useState(pomoSettings.workMin);
+  const[short,setShort]=useState(pomoSettings.shortMin);
+  const[long,setLong]=useState(pomoSettings.longMin);
+  const lv=getLevel(xp);
+  const last7=Array.from({length:7},(_,i)=>{const d=addDays(TODAY,-(6-i));return{date:d,label:fmtDate(d,{weekday:'short'}).split(',')[0],mins:focusMinutes[d]||0};});
+  const maxMins=Math.max(...last7.map(d=>d.mins),1);
+  const save=()=>{setPomoSettings({workMin:work,shortMin:short,longMin:long});setSaved(true);setTimeout(()=>setSaved(false),2000);};
+  const Row=({label,val,setVal,min,max,color})=>(
+    <div style={{marginBottom:18}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{fontSize:12,color:T.muted,fontWeight:600}}>{label}</span><span style={{fontFamily:"'Space Mono',monospace",fontSize:14,fontWeight:700,color}}>{val} min</span></div>
+      <input type="range" min={min} max={max} value={val} onChange={e=>setVal(Number(e.target.value))} style={{width:"100%",accentColor:color,height:4,cursor:"pointer"}}/>
+      <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}><span style={{fontSize:10,color:T.muted}}>{min}m</span><span style={{fontSize:10,color:T.muted}}>{max}m</span></div>
+    </div>
+  );
+  return(
+    <div className="fade-up">
+      <Card style={{padding:"20px",marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <img src={user.photoURL||""} onError={e=>{e.target.style.display="none";}} style={{width:56,height:56,borderRadius:"50%",border:`2px solid ${T.accent}`}}/>
+          <div style={{flex:1}}><div style={{fontWeight:800,fontSize:16,color:T.text}}>{user.displayName||"Scholar"}</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>{user.email}</div><div style={{display:"flex",alignItems:"center",gap:6,marginTop:6}}><span style={{fontSize:16}}>{lv.icon}</span><span style={{fontSize:12,color:T.accent,fontWeight:700}}>{lv.name}</span><span style={{fontSize:11,color:T.muted}}>· {xp} XP</span></div></div>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:16}}>
+          <div style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 8px"}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#FBBF24"}}>🔥{streak}</div><div style={{fontSize:9,color:T.muted,marginTop:2,letterSpacing:1}}>DAY STREAK</div></div>
+          <div style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 8px"}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#A78BFA"}}>⏱️{pomoCount}</div><div style={{fontSize:9,color:T.muted,marginTop:2,letterSpacing:1}}>POMODOROS</div></div>
+          <div style={{flex:1,textAlign:"center",background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"10px 8px"}}><div style={{fontFamily:"'Space Mono',monospace",fontSize:20,fontWeight:700,color:"#34D399"}}>{Math.round(Object.values(focusMinutes).reduce((a,b)=>a+b,0)/60*10)/10}h</div><div style={{fontSize:9,color:T.muted,marginTop:2,letterSpacing:1}}>FOCUSED</div></div>
+        </div>
+        <button onClick={onSignOut} style={{width:"100%",marginTop:14,padding:"11px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:10,color:"#EF4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>Sign Out</button>
+      </Card>
+      <Card style={{padding:"18px",marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:16}}>📊 Focus Time — Last 7 Days</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:80}}>
+          {last7.map(d=>{const h=d.mins>0?Math.max(8,Math.round((d.mins/maxMins)*72)):4;const isToday=d.date===TODAY;return(
+            <div key={d.date} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{fontSize:9,color:T.muted,fontFamily:"'Space Mono',monospace"}}>{d.mins>0?`${d.mins}m`:""}</div>
+              <div style={{width:"100%",height:h,background:isToday?T.accent:d.mins>0?"rgba(56,189,248,0.4)":"rgba(255,255,255,0.05)",borderRadius:4,transition:"height 0.4s"}}/>
+              <div style={{fontSize:9,color:isToday?T.accent:T.muted,fontFamily:"'Space Mono',monospace",fontWeight:isToday?700:400}}>{d.label}</div>
+            </div>
+          );})}
+        </div>
+        {Object.values(focusMinutes).every(m=>m===0)&&<div style={{textAlign:"center",fontSize:12,color:T.muted,marginTop:12,opacity:0.6}}>Start a Focus session to see your graph</div>}
+      </Card>
+      <Card style={{padding:"18px",marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:6}}>⏱️ Pomodoro Settings</div>
+        <div style={{fontSize:11,color:T.muted,marginBottom:16}}>Customize your focus and break durations.</div>
+        <Row label="Focus Session" val={work} setVal={setWork} min={10} max={60} color={T.accent}/>
+        <Row label="Short Break" val={short} setVal={setShort} min={3} max={15} color="#34D399"/>
+        <Row label="Long Break" val={long} setVal={setLong} min={10} max={30} color="#A78BFA"/>
+        <div style={{background:"rgba(56,189,248,0.06)",border:"1px solid rgba(56,189,248,0.12)",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:11,color:T.muted,lineHeight:1.7}}>Current: <span style={{color:T.accent,fontWeight:700}}>{work}m focus</span> → <span style={{color:"#34D399",fontWeight:700}}>{short}m break</span> → after 4 sessions → <span style={{color:"#A78BFA",fontWeight:700}}>{long}m long break</span></div>
+        <button onClick={save} style={{width:"100%",padding:"12px",background:saved?"linear-gradient(135deg,#064E3B,#34D399)":"linear-gradient(135deg,#0EA5E9,#38BDF8)",color:"#0A0F1E",border:"none",borderRadius:10,fontSize:14,fontWeight:800,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",transition:"background 0.3s"}}>{saved?"✓ Saved!":"Save Settings"}</button>
+      </Card>
+      <Card style={{padding:"16px",marginBottom:12}}>
+        <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:10}}>ℹ️ About</div>
+        <div style={{fontSize:12,color:T.muted,lineHeight:1.8}}><div>JEE 2027 Study Planner</div><div style={{color:T.accent,fontWeight:700}}>Version 3.1</div><div style={{marginTop:6}}>Built with Full Control Mode. 🔥</div><div style={{marginTop:4,fontSize:11,opacity:0.6}}>Full screen lock during Focus Mode requires the Android app. Coming soon.</div></div>
+      </Card>
+    </div>
+  );
+}
+
 function ExtendModal({plan,onExtend,onClose}){
   const[newEnd,setNewEnd]=useState("");
   return(
@@ -751,7 +709,6 @@ function ExtendModal({plan,onExtend,onClose}){
   );
 }
 
-// ── LOGIN SCREEN ──────────────────────────────────────────────────────────────
 function LoginScreen({onLogin,loading}){
   return(
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"100vh",padding:24,background:T.bg}}>
@@ -762,11 +719,7 @@ function LoginScreen({onLogin,loading}){
         <div style={{fontSize:13,color:T.muted,lineHeight:1.8}}>Study planner + Focus mode.<br/>Sync across all devices.</div>
       </div>
       <Card style={{width:"100%",maxWidth:360,padding:"28px 24px"}} glow>
-        <div style={{textAlign:"center",marginBottom:20}}>
-          <div style={{fontSize:44,marginBottom:8}}>🎯</div>
-          <div style={{fontWeight:700,fontSize:16,color:T.text,marginBottom:4}}>Welcome, sir</div>
-          <div style={{fontSize:12,color:T.muted}}>Sign in to access your plans</div>
-        </div>
+        <div style={{textAlign:"center",marginBottom:20}}><div style={{fontSize:44,marginBottom:8}}>🎯</div><div style={{fontWeight:700,fontSize:16,color:T.text,marginBottom:4}}>Welcome, sir</div><div style={{fontSize:12,color:T.muted}}>Sign in to access your plans</div></div>
         <button onClick={onLogin} disabled={loading} style={{width:"100%",padding:"14px 20px",background:"white",color:"#1E293B",border:"none",borderRadius:12,fontSize:14,fontWeight:700,cursor:loading?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:"'DM Sans',sans-serif",opacity:loading?0.7:1}}>
           {loading?<div style={{width:20,height:20,border:"2.5px solid #CBD5E1",borderTopColor:"#1E293B",borderRadius:"50%"}} className="spin"/>:<svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>}
           {loading?"Signing in…":"Continue with Google"}
@@ -777,7 +730,6 @@ function LoginScreen({onLogin,loading}){
   );
 }
 
-// ── ROOT APP ──────────────────────────────────────────────────────────────────
 function App(){
   const[user,setUser]=useState(null);
   const[authLoading,setAuthLoading]=useState(true);
@@ -786,20 +738,21 @@ function App(){
   const[tab,setTab]=useState("today");
   const[plans,setPlans]=useState([]);
   const[progress,setProgress]=useState({});
-  // XP state — stored as flat numbers, no computed-on-the-fly
-  const[xp,setXp]=useState(0);
   const[streak,setStreak]=useState(0);
   const[lastStudy,setLastStudy]=useState(null);
   const[pomoCount,setPomoCount]=useState(0);
   const[earnedBadges,setEarnedBadges]=useState([]);
+  const[focusMinutes,setFocusMinutes]=useState({});
+  const[pomoSettings,setPomoSettings]=useState({workMin:25,shortMin:5,longMin:15});
   const[viewing,setViewing]=useState(null);
   const[cert,setCert]=useState(null);
   const[extPlan,setExtPlan]=useState(null);
-  const[focusSession,setFocusSession]=useState(null); // {topic,planId,topicId,planName,isExpired}
+  const[focusSession,setFocusSession]=useState(null);
   const[syncing,setSyncing]=useState(false);
-  const[newBadgeToast,setNewBadgeToast]=useState(null);
+  const[badgeToast,setBadgeToast]=useState(null);
   const unsubRef=useRef(null);
-  const savingRef=useRef(false); // prevent listener double-update
+  const savingRef=useRef(false);
+  const xp=useMemo(()=>computeXP(plans,progress,pomoCount),[plans,progress,pomoCount]);
 
   useEffect(()=>{
     if(window._fbReady){setFbReady(true);return;}
@@ -816,11 +769,12 @@ function App(){
         if(data){
           if(data.plans)setPlans(data.plans);
           if(data.progress)setProgress(data.progress);
-          if(data.xp!=null)setXp(data.xp);
           if(data.streak!=null)setStreak(data.streak);
           if(data.lastStudy)setLastStudy(data.lastStudy);
           if(data.pomoCount!=null)setPomoCount(data.pomoCount);
           if(data.earnedBadges)setEarnedBadges(data.earnedBadges);
+          if(data.focusMinutes)setFocusMinutes(data.focusMinutes);
+          if(data.pomoSettings)setPomoSettings(data.pomoSettings);
         } else {
           const lp=LS.get("jee_plans_v4"),lpr=LS.get("jee_progress_v4");
           if(lp)setPlans(lp);if(lpr)setProgress(lpr);
@@ -828,114 +782,101 @@ function App(){
         setSyncing(false);
         if(unsubRef.current)unsubRef.current();
         unsubRef.current=window._fb.listen(u.uid,d=>{
-          if(savingRef.current)return; // ignore our own save echo
+          if(savingRef.current)return;
           if(d.plans)setPlans(d.plans);if(d.progress)setProgress(d.progress);
-          if(d.xp!=null)setXp(d.xp);if(d.streak!=null)setStreak(d.streak);
+          if(d.streak!=null)setStreak(d.streak);
           if(d.pomoCount!=null)setPomoCount(d.pomoCount);
           if(d.earnedBadges)setEarnedBadges(d.earnedBadges);
+          if(d.focusMinutes)setFocusMinutes(d.focusMinutes);
+          if(d.pomoSettings)setPomoSettings(d.pomoSettings);
         });
       } else {if(unsubRef.current){unsubRef.current();unsubRef.current=null;}}
     });
     return()=>unsub();
   },[fbReady]);
 
-  const syncToCloud=useCallback(async(payload)=>{
+  const sync=useCallback(async(payload)=>{
     savingRef.current=true;
-    LS.set("jee_plans_v4",payload.plans);LS.set("jee_progress_v4",payload.progress);
-    if(user){
-      try{await window._fb.save(user.uid,{...payload,updatedAt:new Date().toISOString()});}
-      catch(e){console.error("Sync error",e);}
-    }
+    LS.set("jee_plans_v4",payload.plans||plans);
+    LS.set("jee_progress_v4",payload.progress||progress);
+    if(user){try{await window._fb.save(user.uid,{...payload,updatedAt:new Date().toISOString()});}catch(e){console.error(e);}}
     setTimeout(()=>{savingRef.current=false;},2000);
-  },[user]);
+  },[user,plans,progress]);
 
-  const savePlans=async np=>{
-    setPlans(np);
-    await syncToCloud({plans:np,progress,xp,streak,lastStudy,pomoCount,earnedBadges});
-  };
-
-  const applyXPAndBadges=(nxp,nstreak,nls,npr,npc,nplans)=>{
-    const nb=checkBadges({xp:nxp,streak:nstreak,earnedBadges,plans:nplans||plans,progress:npr||progress,pomoCount:npc!=null?npc:pomoCount});
-    const newOnes=nb.filter(id=>!earnedBadges.includes(id));
-    if(newOnes.length>0){
-      const def=BADGE_DEFS.find(b=>b.id===newOnes[0]);
-      if(def){setNewBadgeToast(def);setTimeout(()=>setNewBadgeToast(null),3500);}
-    }
-    return nb;
+  const checkAndToastBadges=(nb,old)=>{
+    const newOnes=nb.filter(id=>!old.includes(id));
+    if(newOnes.length>0){const def=BADGE_DEFS.find(b=>b.id===newOnes[0]);if(def){setBadgeToast(def);setTimeout(()=>setBadgeToast(null),3500);}}
   };
 
   const onToggle=async(planId,date,topicId)=>{
-    // FIXED: check current state before updating to prevent double-XP
     const was=!!(progress[planId]?.[date]?.[topicId]);
     const npr={...progress};
     if(!npr[planId])npr[planId]={};
     if(!npr[planId][date])npr[planId][date]={};
     npr[planId][date][topicId]=!was;
-
-    // XP calculation — fixed, no ambiguity
-    const plan=plans.find(p=>p.id===planId);
-    const isExpired=plan&&plan.endDate<TODAY;
-    let nxp=xp;
-    if(!was){nxp+=isExpired?XP.TOPIC_LATE:XP.TOPIC_ONTIME;}
-    else{nxp=Math.max(0,nxp-XP.UNCHECK);}
-
-    // Streak — only update when checking, not unchecking
     let ns=streak,nls=lastStudy;
     if(!was){
       if(lastStudy===addDays(TODAY,-1)){ns=streak+1;nls=TODAY;}
       else if(lastStudy!==TODAY){ns=1;nls=TODAY;}
     }
-
-    // Plan completion bonus — only when checking, and only when truly 100%
-    let planCompleted=false;
+    const newXp=computeXP(plans,npr,pomoCount);
+    const nb=computeBadges({xp:newXp,streak:ns,plans,progress:npr,pomoCount,earnedBadges});
+    checkAndToastBadges(nb,earnedBadges);
+    const plan=plans.find(p=>p.id===planId);
+    let planDone=false;
     if(!was&&plan){
-      const all=[...new Set(Object.values(plan.schedule||{}).flat())];
-      const done=[...new Set(Object.values(npr[planId]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
-      if(done.length===all.length&&!isExpired){nxp+=XP.PLAN_COMPLETE;planCompleted=true;}
+      const allIds=[...new Set(Object.values(plan.schedule||{}).flat())];
+      const doneIds=[...new Set(Object.values(npr[planId]||{}).flatMap(d=>Object.entries(d).filter(([,v])=>v).map(([k])=>k)))];
+      if(doneIds.length===allIds.length&&allIds.length>0&&plan.endDate>=TODAY)planDone=true;
     }
-
-    nxp=Math.max(0,nxp);
-    const nb=applyXPAndBadges(nxp,ns,nls,npr,null,null);
-
-    setProgress(npr);setXp(nxp);setStreak(ns);setLastStudy(nls);setEarnedBadges(nb);
-    await syncToCloud({plans,progress:npr,xp:nxp,streak:ns,lastStudy:nls,pomoCount,earnedBadges:nb});
-
-    if(planCompleted)setTimeout(()=>setCert(plan),400);
+    setProgress(npr);setStreak(ns);setLastStudy(nls);setEarnedBadges(nb);
+    await sync({plans,progress:npr,streak:ns,lastStudy:nls,pomoCount,earnedBadges:nb,focusMinutes,pomoSettings});
+    if(planDone)setTimeout(()=>{spawnConfetti();setCert(plan);},400);
   };
 
   const onPomoComplete=useCallback(async()=>{
     const npc=pomoCount+1;
-    const nxp=xp+XP.POMO_SESSION;
-    const nb=applyXPAndBadges(nxp,streak,lastStudy,null,npc,null);
-    setPomoCount(npc);setXp(nxp);setEarnedBadges(nb);
-    await syncToCloud({plans,progress,xp:nxp,streak,lastStudy,pomoCount:npc,earnedBadges:nb});
-  },[pomoCount,xp,streak,lastStudy,plans,progress,earnedBadges]);
+    const newXp=computeXP(plans,progress,npc);
+    const nb=computeBadges({xp:newXp,streak,plans,progress,pomoCount:npc,earnedBadges});
+    checkAndToastBadges(nb,earnedBadges);
+    setPomoCount(npc);setEarnedBadges(nb);
+    await sync({plans,progress,streak,lastStudy,pomoCount:npc,earnedBadges:nb,focusMinutes,pomoSettings});
+  },[pomoCount,streak,lastStudy,plans,progress,earnedBadges,focusMinutes,pomoSettings]);
+
+  const onFocusMinute=useCallback(async(mins)=>{
+    const nfm={...focusMinutes,[TODAY]:(focusMinutes[TODAY]||0)+mins};
+    setFocusMinutes(nfm);
+    await sync({plans,progress,streak,lastStudy,pomoCount,earnedBadges,focusMinutes:nfm,pomoSettings});
+  },[focusMinutes,plans,progress,streak,lastStudy,pomoCount,earnedBadges,pomoSettings]);
 
   const onFocusComplete=async(planId,topicId)=>{
     setFocusSession(null);
-    // Mark topic done if not already done
     const was=!!(progress[planId]?.[TODAY]?.[topicId]);
     if(!was)await onToggle(planId,TODAY,topicId);
   };
 
-  const onForceQuit=async()=>{
-    setFocusSession(null);
-    const nxp=Math.max(0,xp-XP.FORCE_QUIT_PENALTY);
-    setXp(nxp);
-    await syncToCloud({plans,progress,xp:nxp,streak,lastStudy,pomoCount,earnedBadges});
+  const savePlans=async np=>{
+    setPlans(np);
+    const nb=computeBadges({xp:computeXP(np,progress,pomoCount),streak,plans:np,progress,pomoCount,earnedBadges});
+    setEarnedBadges(nb);
+    await sync({plans:np,progress,streak,lastStudy,pomoCount,earnedBadges:nb,focusMinutes,pomoSettings});
   };
 
   const onDelete=async id=>{
-    const np=plans.filter(p=>p.id!==id);
-    const npr={...progress};delete npr[id];
+    const np=plans.filter(p=>p.id!==id);const npr={...progress};delete npr[id];
     setPlans(np);setProgress(npr);
-    await syncToCloud({plans:np,progress:npr,xp,streak,lastStudy,pomoCount,earnedBadges});
+    await sync({plans:np,progress:npr,streak,lastStudy,pomoCount,earnedBadges,focusMinutes,pomoSettings});
     if(viewing?.id===id)setViewing(null);
   };
 
   const onExtend=async(planId,newEnd)=>{
     const np=plans.map(p=>{if(p.id!==planId)return p;return{...p,endDate:newEnd,schedule:buildSchedule(p.selectedTopics||[],p.startDate,newEnd)};});
     setExtPlan(null);await savePlans(np);
+  };
+
+  const savePomoSettings=async ns=>{
+    setPomoSettings(ns);
+    await sync({plans,progress,streak,lastStudy,pomoCount,earnedBadges,focusMinutes,pomoSettings:ns});
   };
 
   if(!fbReady||authLoading)return(
@@ -947,27 +888,23 @@ function App(){
 
   if(!user)return <LoginScreen onLogin={async()=>{setSignInLoading(true);try{await window._fb.signIn();}catch(e){console.error(e);}setSignInLoading(false);}} loading={signInLoading}/>;
 
-  const TABS=[{k:"today",icon:"◉",lbl:"Today"},{k:"plans",icon:"◧",lbl:"Plans"},{k:"create",icon:"⊕",lbl:"New"},{k:"progress",icon:"◈",lbl:"Progress"}];
+  const TABS=[{k:"today",icon:"◉",lbl:"Today"},{k:"plans",icon:"◧",lbl:"Plans"},{k:"create",icon:"⊕",lbl:"New"},{k:"progress",icon:"◈",lbl:"Progress"},{k:"settings",icon:"◎",lbl:"Profile"}];
 
   return(
-    <div style={{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:T.bg,paddingBottom:80,position:"relative"}}>
+    <div style={{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:T.bg,paddingBottom:84,position:"relative"}}>
       <div style={{position:"fixed",top:-80,left:"50%",transform:"translateX(-50%)",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(56,189,248,0.06) 0%,transparent 70%)",pointerEvents:"none",zIndex:0}}/>
-
-      {/* Header */}
       <div style={{position:"sticky",top:0,zIndex:20,background:"rgba(10,15,30,0.92)",backdropFilter:"blur(20px)",borderBottom:"1px solid rgba(56,189,248,0.08)",padding:"12px 16px 10px"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.muted,letterSpacing:2.5,textTransform:"uppercase",marginBottom:2}}>JEE 2027 · Full Control Mode</div>
-            <div style={{fontWeight:900,fontSize:18,color:T.text,letterSpacing:-0.5}}>{viewing?viewing.name:({today:"Today's Tasks",plans:"My Plans",create:"New Plan",progress:"Progress"}[tab])}</div>
+            <div style={{fontWeight:900,fontSize:18,color:T.text,letterSpacing:-0.5}}>{viewing?viewing.name:({today:"Today's Tasks",plans:"My Plans",create:"New Plan",progress:"Progress",settings:"Profile & Settings"}[tab])}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {syncing&&<div style={{width:16,height:16,border:"2px solid rgba(56,189,248,0.3)",borderTopColor:T.accent,borderRadius:"50%"}} className="spin"/>}
-            <img src={user.photoURL||""} onError={e=>{e.target.style.display="none";}} style={{width:30,height:30,borderRadius:"50%",border:"2px solid rgba(56,189,248,0.3)",cursor:"pointer"}} onClick={()=>{if(confirm("Sign out?"))window._fb.signOut();}} title="Sign out"/>
+            <div style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:T.accent,fontWeight:700}}>{xp}XP</div>
           </div>
         </div>
       </div>
-
-      {/* Content */}
       <div style={{padding:"14px 12px 8px",position:"relative",zIndex:1}}>
         {viewing?(
           <PlanDetail plan={viewing} progress={progress} onToggle={onToggle} onBack={()=>setViewing(null)} onStartFocus={setFocusSession}/>
@@ -977,42 +914,26 @@ function App(){
             {tab==="plans"&&<PlansView plans={plans} progress={progress} onDelete={onDelete} onView={(p,c)=>{c?setCert(p):setViewing(p);}} onExtend={setExtPlan} onStartFocus={setFocusSession}/>}
             {tab==="create"&&<CreateView onSave={async plan=>{await savePlans([...plans,plan]);setTab("plans");}}/>}
             {tab==="progress"&&<ProgressView plans={plans} progress={progress} xp={xp} streak={streak} earnedBadges={earnedBadges} pomoCount={pomoCount}/>}
+            {tab==="settings"&&<SettingsView user={user} pomoSettings={pomoSettings} setPomoSettings={savePomoSettings} focusMinutes={focusMinutes} streak={streak} pomoCount={pomoCount} xp={xp} onSignOut={()=>{if(confirm("Sign out?"))window._fb.signOut();}}/>}
           </>
         )}
       </div>
-
-      {/* Bottom Nav */}
       {!viewing&&!focusSession&&(
         <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:"rgba(10,15,30,0.96)",backdropFilter:"blur(20px)",borderTop:"1px solid rgba(56,189,248,0.08)",display:"flex",justifyContent:"space-around",padding:"8px 0 14px",zIndex:30}}>
           {TABS.map(t=>(
-            <button key={t.k} onClick={()=>setTab(t.k)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 12px",color:tab===t.k?T.accent:T.muted,fontWeight:tab===t.k?700:400,fontSize:9,letterSpacing:0.8,textTransform:"uppercase",fontFamily:"'Space Mono',monospace",userSelect:"none",transition:"color 0.15s"}}>
-              <span style={{fontSize:18,lineHeight:1.1,fontFamily:"monospace"}}>{t.icon}</span>{t.lbl}
+            <button key={t.k} onClick={()=>setTab(t.k)} style={{background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"4px 8px",color:tab===t.k?T.accent:T.muted,fontWeight:tab===t.k?700:400,fontSize:8,letterSpacing:0.8,textTransform:"uppercase",fontFamily:"'Space Mono',monospace",userSelect:"none",transition:"color 0.15s"}}>
+              <span style={{fontSize:17,lineHeight:1.1,fontFamily:"monospace"}}>{t.icon}</span>{t.lbl}
             </button>
           ))}
         </div>
       )}
-
-      {/* Focus Mode */}
-      {focusSession&&(
-        <FocusMode
-          topic={focusSession.topic}
-          planName={focusSession.planName}
-          isExpired={focusSession.isExpired}
-          onComplete={()=>onFocusComplete(focusSession.planId,focusSession.topicId)}
-          onForceQuit={onForceQuit}
-          onXP={onPomoComplete}
-        />
-      )}
-
-      {/* Modals */}
+      {focusSession&&<FocusMode topic={focusSession.topic} planName={focusSession.planName} onComplete={()=>onFocusComplete(focusSession.planId,focusSession.topicId)} onForceQuit={()=>setFocusSession(null)} onPomoComplete={onPomoComplete} onFocusMinute={onFocusMinute} pomoSettings={pomoSettings}/>}
       {cert&&<Certificate plan={cert} progress={progress} onClose={()=>setCert(null)}/>}
       {extPlan&&<ExtendModal plan={extPlan} onExtend={onExtend} onClose={()=>setExtPlan(null)}/>}
-
-      {/* Badge toast */}
-      {newBadgeToast&&(
-        <div className="pop" style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(15,25,50,0.98)",border:"1px solid rgba(56,189,248,0.3)",borderRadius:14,padding:"12px 20px",display:"flex",alignItems:"center",gap:12,zIndex:999,boxShadow:"0 8px 32px rgba(0,0,0,0.5)",whiteSpace:"nowrap"}}>
-          <span style={{fontSize:28}}>{newBadgeToast.icon}</span>
-          <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.accent,letterSpacing:1}}>BADGE UNLOCKED!</div><div style={{fontWeight:700,fontSize:14,color:T.text}}>{newBadgeToast.name}</div><div style={{fontSize:11,color:T.muted}}>{newBadgeToast.desc}</div></div>
+      {badgeToast&&(
+        <div className="slide-in" style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",background:"rgba(15,25,50,0.98)",border:"1px solid rgba(56,189,248,0.3)",borderRadius:14,padding:"12px 20px",display:"flex",alignItems:"center",gap:12,zIndex:999,boxShadow:"0 8px 32px rgba(0,0,0,0.6)",whiteSpace:"nowrap"}}>
+          <span style={{fontSize:28}}>{badgeToast.icon}</span>
+          <div><div style={{fontFamily:"'Space Mono',monospace",fontSize:9,color:T.accent,letterSpacing:1}}>BADGE UNLOCKED!</div><div style={{fontWeight:700,fontSize:14,color:T.text}}>{badgeToast.name}</div><div style={{fontSize:11,color:T.muted}}>{badgeToast.desc}</div></div>
         </div>
       )}
     </div>
@@ -1020,21 +941,6 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-</script>
-
-<script>
-// PWA Service Worker
-if('serviceWorker' in navigator){
-  const sw=`
-    const CACHE='jee-planner-v3';
-    const ASSETS=['./','/JEE-Planner/','/JEE-Planner/index.html'];
-    self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS).catch(()=>{})));self.skipWaiting();});
-    self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));});
-    self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});
-  `;
-  const blob=new Blob([sw],{type:'application/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
-}
 </script>
 </body>
 </html>
